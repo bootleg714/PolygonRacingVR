@@ -269,8 +269,8 @@ namespace PolygonRacing
         {
             var n=Vector3.Cross(b-a,c-a).normalized;if(n.y<0)n=-n;
             var centre=(a+b+c)/3;Material m;
-            if(n.y<.6f)m=rock;
-            else if(n.y<.78f)m=dirt;
+            if(n.y<.5f)m=rock;
+            else if(n.y<.66f)m=dirt;
             else if(far)m=centre.y>150?grassDark:forestFloor;
             else
             {
@@ -798,24 +798,25 @@ namespace PolygonRacing
                         if(Offset(p)<12||Reserved(new Vector2(p.x,p.z),3)||IsMeadow(p.x,p.z))continue;
                         p.y=TerrainHeight(p.x,p.z);
                         float h=12+Hash(p.x,p.z,3)*10;
-                        if(Hash(p.x,p.z,4)<.72f)Spruce(chunks.At(p),p,h,false);else Broadleaf(chunks.At(p),p,h*.8f,false);
+                        bool simple=k==2;   // the back row reads as a silhouette
+                        if(Hash(p.x,p.z,4)<.72f)Spruce(chunks.At(p),p,h,simple);else Broadleaf(chunks.At(p),p,h*.8f,simple);
                         count++;
                     }
             // Wider woods over the hills inside the detailed area (simpler trees further away).
-            for(float x=-900;x<=1200;x+=24)
-                for(float z=-260;z<=1420;z+=24)
+            for(float x=-900;x<=1200;x+=28)
+                for(float z=-260;z<=1420;z+=28)
                 {
                     var p=new Vector3(x+(Hash(x,z,41)-.5f)*16,0,z+(Hash(x,z,42)-.5f)*16);
                     if(Hash(x,z,43)<.3f||IsMeadow(p.x,p.z)||Reserved(new Vector2(p.x,p.z),4))continue;
                     float o=Offset(p);if(o<46)continue;
                     p.y=TerrainHeight(p.x,p.z);
-                    float h=12+Hash(x,z,44)*9;bool simple=o>95;
+                    float h=12+Hash(x,z,44)*9;bool simple=o>75;
                     if(Hash(x,z,45)<.7f)Spruce(chunks.At(p),p,h,simple);else Broadleaf(chunks.At(p),p,h*.8f,simple);
                     count++;
                 }
             // Distant hills: sparse simple trees on the coarse ground.
-            for(float x=-2500;x<=2700;x+=60)
-                for(float z=-2100;z<=2900;z+=60)
+            for(float x=-2500;x<=2700;x+=72)
+                for(float z=-2100;z<=2900;z+=72)
                 {
                     if(x>-900&&x<1200&&z>-260&&z<1420)continue;
                     var p=new Vector3(x+(Hash(x,z,46)-.5f)*40,0,z+(Hash(x,z,47)-.5f)*40);
@@ -863,8 +864,8 @@ namespace PolygonRacing
             float mid=(PitStart+PitEnd)*.5f;
             float pitGround=Mathf.Min(Mathf.Min(E(PitStart),E(mid)),Mathf.Min(E(PitEnd),E(PitEnd+40)))-.5f;
             AddSite(P(mid),T(mid),48,(PitEnd-PitStart)*.5f+14,pitGround,30);
-            AddSite(new Vector3(VillageSite.x,0,VillageSite.y),Vector3.forward,70,55,TerrainHeight(VillageSite.x,VillageSite.y),40);
-            AddSite(new Vector3(CampSite.x,0,CampSite.y),Vector3.forward,45,95,TerrainHeight(CampSite.x,CampSite.y),25);
+            AddSite(new Vector3(VillageSite.x,0,VillageSite.y),Vector3.forward,70,55,TerrainHeight(VillageSite.x,VillageSite.y),90);
+            AddSite(new Vector3(CampSite.x,0,CampSite.y),Vector3.forward,45,95,TerrainHeight(CampSite.x,CampSite.y),80);
             PrepareGround();
             var world=new GameObject(SceneryName).transform;world.SetParent(circuitRoot,false);
             var chunks=new Chunks();
