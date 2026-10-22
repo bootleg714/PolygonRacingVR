@@ -39,6 +39,10 @@ Kept exactly: car root and `PolygonDriver` values, `Seated tracking space`/camer
 
 Meshes and seven double-sided flat-lit materials live in `Assets/PolygonRacing/Generated/Car`. The livery material is `PR_Vermilion car body` (name prefix required: rivals recolour `PR_Vermilion*`), so rivals get the new body in their team colours automatically. Re-running menu 10 reuses the same assets and keeps any colours tuned in the Inspector. Body is about 2,000 triangles in one renderer.
 
+Headset result for Car v01: “massive difference”, FPS good, water now clearly visible. Feedback: suspension top bars ended in mid-air; steering-wheel rim segments were asymmetric/hollow (grip test depended on segment order, open square tubes); wanted tilt, a smoother rim and more button detail.
+
+Car v02 (menu 10 again): metal uprights on each wheel pivot (front ones steer, with a steering arm), flat aero wishbones that start just inside the real body surface (`BodyHalfWidth` intersects the nose/engine/sidepod sections) and end on the uprights, plus pushrods. Steering wheel is one continuous swept 6-sided tube around a flat-bottomed oval (40 samples, grip thickness from |cos t| so it is symmetric), carbon centre plate, teal display, 9-segment LED strip (static until the tachometer pass), octagonal buttons, two rotary knobs, shift paddles, yellow top marker. Tilt 15° comes from a new parent `Steering column - tilted`; `PolygonDriver` still rotates the `Steering wheel` transform about its own axis. Two new materials: `PR_Car LED green`, `PR_Car display`.
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation

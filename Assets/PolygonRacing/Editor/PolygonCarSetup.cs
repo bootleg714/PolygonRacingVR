@@ -20,7 +20,9 @@ namespace PolygonRacing.Editor
         const string BodyName="Car body - faceted",WheelName="Steering wheel - faceted",RimName="Wheel rim - faceted";
 
         // Submesh / material slots.
-        const int Red=0,Ivory=1,Carbon=2,Metal=3,Yellow=4,Mirror=5,Cockpit=6,SlotCount=7;
+        const int Red=0,Ivory=1,Carbon=2,Metal=3,Yellow=4,Mirror=5,Cockpit=6,Green=7,Screen=8,SlotCount=9;
+        const string UprightName="Wheel upright - faceted",ColumnName="Steering column - tilted";
+        const float WheelTilt=15;   // degrees; top of the wheel leans away from the driver
 
         static readonly HashSet<string> OldBodyParts=new HashSet<string>{
             "Wedge nose","Nose stripe","Chassis","Side pod","White side stripe","Cockpit rim","Seat back","Seat cushion",
@@ -62,7 +64,7 @@ namespace PolygonRacing.Editor
             if(done>0)Debug.Log("Player car rebuilt in "+done+" circuit(s). Seat, tracking, dashboard and handling are unchanged. Rivals copy the new body automatically.");
         }
 
-        struct CarMeshes{public Mesh Body,Steering,Tire,RimLeft,RimRight;}
+        struct CarMeshes{public Mesh Body,Steering,Tire,RimLeft,RimRight,UprightFrontLeft,UprightFrontRight,UprightRearLeft,UprightRearRight;}
 
         static void ApplyToCar(PolygonDriver driver,Material[] materials,CarMeshes meshes)
         {
@@ -80,6 +82,19 @@ namespace PolygonRacing.Editor
             if(driver.steeringWheel)
             {
                 var wheel=driver.steeringWheel;
+                // Tilt via a parent column so PolygonDriver's steering rotation still turns the
+                // wheel about its own (tilted) axis.
+                var column=wheel.parent;
+                if(!column||column.name!=ColumnName)
+                {
+                    column=new GameObject(ColumnName).transform;
+                    column.SetParent(car,false);
+                    column.localPosition=wheel.localPosition;
+                    column.SetSiblingIndex(wheel.GetSiblingIndex());
+                    wheel.SetParent(column,false);
+                    wheel.localPosition=Vector3.zero;
+                }
+                column.localRotation=Quaternion.Euler(WheelTilt,0,0);
                 for(int i=wheel.childCount-1;i>=0;i--)
                     if(OldWheelParts.Contains(wheel.GetChild(i).name))Object.DestroyImmediate(wheel.GetChild(i).gameObject);
                 var go=new GameObject(WheelName,typeof(MeshFilter),typeof(MeshRenderer));
@@ -105,6 +120,19 @@ namespace PolygonRacing.Editor
                     var rim=new GameObject(RimName,typeof(MeshFilter),typeof(MeshRenderer));
                     rim.transform.SetParent(tire,false);
                     Assign(rim,side<0?meshes.RimLeft:meshes.RimRight,materials);
+                    // Upright on the wheel's pivot: it steers with the front wheels but does not spin.
+                    var pivot=tire.parent;
+                    if(pivot&&pivot!=car)
+                    {
+                        for(int i=pivot.childCount-1;i>=0;i--)
+                            if(pivot.GetChild(i).name==UprightName)Object.DestroyImmediate(pivot.GetChild(i).gameObject);
+                        bool front=driver.frontSteering!=null&&System.Array.IndexOf(driver.frontSteering,pivot)>=0;
+                        var upright=new GameObject(UprightName,typeof(MeshFilter),typeof(MeshRenderer));
+                        upright.transform.SetParent(pivot,false);
+                        upright.transform.localPosition=tire.localPosition;
+                        Assign(upright,front?(side<0?meshes.UprightFrontLeft:meshes.UprightFrontRight)
+                                            :(side<0?meshes.UprightRearLeft:meshes.UprightRearRight),materials);
+                    }
                     EditorUtility.SetDirty(tire.gameObject);
                 }
             EditorUtility.SetDirty(car.gameObject);
@@ -134,7 +162,9 @@ namespace PolygonRacing.Editor
                 CarMaterial("PR_Car metal",new Color(.30f,.35f,.40f),shader),
                 CarMaterial("PR_Car yellow",new Color(1,.78f,.05f),shader),
                 CarMaterial("PR_Car mirror",new Color(.78f,.86f,.92f),shader),
-                CarMaterial("PR_Car cockpit",new Color(.16f,.19f,.24f),shader)};
+                CarMaterial("PR_Car cockpit",new Color(.16f,.19f,.24f),shader),
+                CarMaterial("PR_Car LED green",new Color(.20f,.85f,.35f),shader),
+                CarMaterial("PR_Car display",new Color(.05f,.25f,.28f),shader)};
         }
 
         static Material CarMaterial(string name,Color color,Shader shader)
@@ -161,9 +191,15 @@ namespace PolygonRacing.Editor
             var tire=new CarMesh();BuildTire(tire);
             var rimLeft=new CarMesh();BuildRim(rimLeft,-1);
             var rimRight=new CarMesh();BuildRim(rimRight,1);
+            var ufl=new CarMesh();BuildUpright(ufl,-1,true);
+            var ufr=new CarMesh();BuildUpright(ufr,1,true);
+            var url=new CarMesh();BuildUpright(url,-1,false);
+            var urr=new CarMesh();BuildUpright(urr,1,false);
             return new CarMeshes{
                 Body=SaveMesh(body,"Car body"),Steering=SaveMesh(steering,"Steering wheel"),
-                Tire=SaveMesh(tire,"Tire"),RimLeft=SaveMesh(rimLeft,"Rim left"),RimRight=SaveMesh(rimRight,"Rim right")};
+                Tire=SaveMesh(tire,"Tire"),RimLeft=SaveMesh(rimLeft,"Rim left"),RimRight=SaveMesh(rimRight,"Rim right"),
+                UprightFrontLeft=SaveMesh(ufl,"Upright front left"),UprightFrontRight=SaveMesh(ufr,"Upright front right"),
+                UprightRearLeft=SaveMesh(url,"Upright rear left"),UprightRearRight=SaveMesh(urr,"Upright rear right")};
         }
 
         static Mesh SaveMesh(CarMesh source,string name)
@@ -199,12 +235,50 @@ namespace PolygonRacing.Editor
             return result;
         }
 
+        // Body section data: {z, half width, bottom, height, ridge} and sidepods {z, inner x, outer x, bottom, top}.
+        static readonly float[,] NoseRows={{.48f,.42f,.14f,.56f,.06f},{1.00f,.38f,.15f,.45f,.05f},{1.60f,.32f,.17f,.35f,.04f},
+                                          {2.20f,.25f,.19f,.25f,.03f},{2.70f,.17f,.21f,.17f,.02f},{3.05f,.10f,.24f,.10f,.01f}};
+        static readonly float[,] EngineRows={{-0.95f,.44f,.14f,.70f,.10f},{-1.35f,.40f,.14f,.78f,.14f},
+                                            {-1.80f,.30f,.14f,.55f,.08f},{-2.25f,.16f,.16f,.25f,.03f}};
+        static readonly float[,] PodRows={{-1.95f,.34f,.44f,.20f,.30f},{-1.50f,.40f,.66f,.18f,.42f},{-0.90f,.42f,.90f,.18f,.56f},
+                                         {-0.10f,.42f,.95f,.18f,.62f},{0.30f,.40f,.86f,.18f,.58f}};
+
+        // Outermost body surface (right side) at a given z and height, from the nose, engine cover
+        // and sidepod sections. Suspension arms end just inside it so they visibly join the body.
+        static float BodyHalfWidth(float z,float y)
+        {
+            float best=-1;
+            var lofts=new[]{Sections(NoseRows),Sections(EngineRows),PodSections()};
+            foreach(var sections in lofts)
+                for(int k=0;k<sections.Count-1;k++)
+                {
+                    var (za,ra)=sections[k];var (zb,rb)=sections[k+1];
+                    if(z<Mathf.Min(za,zb)||z>Mathf.Max(za,zb))continue;
+                    float t=Mathf.Approximately(za,zb)?0:(z-za)/(zb-za);
+                    for(int i=0;i<ra.Length;i++)
+                    {
+                        int j=(i+1)%ra.Length;
+                        var p0=Vector2.Lerp(ra[i],rb[i],t);var p1=Vector2.Lerp(ra[j],rb[j],t);
+                        if((p0.y-y)*(p1.y-y)>0||Mathf.Approximately(p0.y,p1.y))continue;
+                        float x=p0.x+(p1.x-p0.x)*(y-p0.y)/(p1.y-p0.y);
+                        best=Mathf.Max(best,x);
+                    }
+                    break;
+                }
+            return best>0?best:.30f;
+        }
+
+        static List<(float,Vector2[])> PodSections()
+        {
+            var list=new List<(float,Vector2[])>();
+            for(int i=0;i<PodRows.GetLength(0);i++)list.Add((PodRows[i,0],Pod(PodRows[i,1],PodRows[i,2],PodRows[i,3],PodRows[i,4])));
+            return list;
+        }
+
         static void BuildBody(CarMesh b)
         {
             // Nose and monocoque front, from the cockpit bulkhead (z .48) to the tip (z 3.05).
-            float[,] nose={{.48f,.42f,.14f,.56f,.06f},{1.00f,.38f,.15f,.45f,.05f},{1.60f,.32f,.17f,.35f,.04f},
-                           {2.20f,.25f,.19f,.25f,.03f},{2.70f,.17f,.21f,.17f,.02f},{3.05f,.10f,.24f,.10f,.01f}};
-            b.LoftZ(Sections(nose),NoseMats,Carbon,Red,true);
+            b.LoftZ(Sections(NoseRows),NoseMats,Carbon,Red,true);
 
             // Cockpit tub side walls (open profile), floor, bulkhead and seat.
             var wall=new[]{new Vector2(.30f,.20f),new Vector2(.31f,.72f),new Vector2(.37f,.79f),
@@ -218,13 +292,10 @@ namespace PolygonRacing.Editor
             b.Box(new Vector3(0,.26f,-.62f),new Vector3(.56f,.10f,.50f),Carbon);
 
             // Engine cover and airbox behind the driver.
-            float[,] engine={{-0.95f,.44f,.14f,.70f,.10f},{-1.35f,.40f,.14f,.78f,.14f},
-                             {-1.80f,.30f,.14f,.55f,.08f},{-2.25f,.16f,.16f,.25f,.03f}};
-            b.LoftZ(Sections(engine),NoseMats,Carbon,Carbon,true);
+            b.LoftZ(Sections(EngineRows),NoseMats,Carbon,Carbon,true);
 
             // Sidepods with dark intakes, shaped and tapering toward the rear.
-            float[,] pods={{-1.95f,.34f,.44f,.20f,.30f},{-1.50f,.40f,.66f,.18f,.42f},{-0.90f,.42f,.90f,.18f,.56f},
-                           {-0.10f,.42f,.95f,.18f,.62f},{0.30f,.40f,.86f,.18f,.58f}};
+            var pods=PodRows;
             var podMats=new[]{Carbon,Red,Red,Ivory,Red,Carbon};
             foreach(float s in new[]{1f,-1f})
             {
@@ -265,16 +336,20 @@ namespace PolygonRacing.Editor
             }
             b.ExtrudeX(ZY(-2.45f,.45f,-2.65f,.47f,-2.65f,.50f,-2.45f,.49f),-.55f,.55f,Carbon);
 
-            // Wishbones and pushrods to each wheel centre (static; wheels steer and spin separately).
-            foreach(var (zc,xb) in new[]{(1.40f,.38f),(-1.45f,.36f)})
+            // Flat aero wishbones from the body surface to each wheel upright, plus a pushrod.
+            // Upright faces sit 0.25 m inboard of the wheel centre (see BuildUpright).
+            foreach(var (zc,xw) in WheelCentres)
                 foreach(float s in new[]{1f,-1f})
                 {
-                    var upper=new Vector3(s*.95f,.50f,zc);var lower=new Vector3(s*.97f,.28f,zc);
-                    b.Tube(new Vector3(s*xb,.52f,zc+.25f),upper,.022f,Carbon);
-                    b.Tube(new Vector3(s*xb,.50f,zc-.25f),upper,.022f,Carbon);
-                    b.Tube(new Vector3(s*xb,.22f,zc+.25f),lower,.022f,Carbon);
-                    b.Tube(new Vector3(s*xb,.22f,zc-.25f),lower,.022f,Carbon);
-                    b.Tube(new Vector3(s*.95f,.30f,zc-.02f),new Vector3(s*(xb+.04f),.60f,zc-.2f),.018f,Metal);
+                    var upper=new Vector3(s*(xw-.25f),.52f,zc);var lower=new Vector3(s*(xw-.25f),.26f,zc);
+                    foreach(float dz in new[]{.25f,-.25f})
+                    {
+                        float zi=zc+dz;
+                        b.FlatTube(new Vector3(s*(BodyHalfWidth(zi,.55f)-.03f),.55f,zi),upper,.032f,.011f,Carbon);
+                        b.FlatTube(new Vector3(s*(BodyHalfWidth(zi,.24f)-.03f),.24f,zi),lower,.032f,.011f,Carbon);
+                    }
+                    float zp=zc-.2f;
+                    b.Tube(new Vector3(s*(xw-.25f),.28f,zc-.02f),new Vector3(s*(BodyHalfWidth(zp,.58f)-.03f),.58f,zp),.016f,Metal);
                 }
 
             // Mirrors on short stalks, glass facing the driver.
@@ -285,25 +360,97 @@ namespace PolygonRacing.Editor
             }
         }
 
+        // Wheel centres (z, |x|) in car space; matches the existing wheel pivots.
+        static readonly (float,float)[] WheelCentres={(1.40f,1.13f),(-1.45f,1.13f)};
+
+        static void BuildUpright(CarMesh b,float s,bool front)
+        {
+            // In pivot space (the wheel centre). A tapered metal block just inboard of the tyre.
+            float x=-s*.25f;
+            var rows=new[]{(-.17f,.07f),(0f,.09f),(.17f,.06f)};
+            for(int r=0;r<rows.Length-1;r++)
+            {
+                var (y0,w0)=rows[r];var (y1,w1)=rows[r+1];
+                var a=new[]{new Vector3(x-.04f,y0,-w0/2-.02f),new Vector3(x+.04f,y0,-w0/2-.02f),new Vector3(x+.04f,y0,w0/2+.02f),new Vector3(x-.04f,y0,w0/2+.02f)};
+                var c=new[]{new Vector3(x-.04f,y1,-w1/2-.02f),new Vector3(x+.04f,y1,-w1/2-.02f),new Vector3(x+.04f,y1,w1/2+.02f),new Vector3(x-.04f,y1,w1/2+.02f)};
+                for(int i=0;i<4;i++){int j=(i+1)%4;b.Quad(a[i],a[j],c[j],c[i],Metal);}
+                b.Poly(a,Metal);b.Poly(c,Metal);
+            }
+            if(front)b.Tube(new Vector3(x,.02f,.05f),new Vector3(x-s*.07f,.02f,.16f),.014f,Metal);   // steering arm
+        }
+
         static void BuildSteering(CarMesh b)
         {
-            // Built around the existing "Steering wheel" pivot; its top stays below the dashboard sight line.
-            var rim=new[]{new Vector2(-.19f,.11f),new Vector2(-.12f,.135f),new Vector2(.12f,.135f),new Vector2(.19f,.11f),
-                          new Vector2(.20f,-.02f),new Vector2(.17f,-.11f),new Vector2(.10f,-.13f),new Vector2(-.10f,-.13f),
-                          new Vector2(-.17f,-.11f),new Vector2(-.20f,-.02f)};
-            for(int i=0;i<rim.Length;i++)
+            // Smooth swept rim: one continuous tube around a flat-bottomed oval, thicker grips
+            // where the hands go. Thickness depends only on |cos t| so both sides match.
+            const int samples=40,sides=6;
+            var centres=new Vector3[samples];var grips=new float[samples];
+            for(int k=0;k<samples;k++)
             {
-                var a=rim[i];var c=rim[(i+1)%rim.Length];
-                bool grip=Mathf.Abs(a.x)>.18f&&Mathf.Abs(c.x)>.16f;
-                b.Tube(new Vector3(a.x,a.y,0),new Vector3(c.x,c.y,0),grip?.03f:.018f,Carbon);
+                float t=k*Mathf.PI*2/samples;
+                centres[k]=new Vector3(.195f*Mathf.Cos(t),Mathf.Max(.125f*Mathf.Sin(t),-.112f),0);
+                float g=Mathf.Clamp01((Mathf.Abs(Mathf.Cos(t))-.72f)/.2f);g=g*g*(3-2*g);
+                if(centres[k].y<-.1f)g*=.4f;
+                grips[k]=g;
             }
-            b.Box(new Vector3(0,0,.005f),new Vector3(.22f,.14f,.03f),Metal);
-            foreach(float s in new[]{1f,-1f})b.Box(new Vector3(s*.15f,-.01f,.005f),new Vector3(.08f,.035f,.02f),Carbon);
-            b.Box(new Vector3(-.06f,.035f,-.017f),new Vector3(.03f,.025f,.014f),Yellow);
-            b.Box(new Vector3(.06f,.035f,-.017f),new Vector3(.03f,.025f,.014f),Mirror);
-            b.Box(new Vector3(-.06f,-.035f,-.017f),new Vector3(.03f,.025f,.014f),Red);
-            b.Box(new Vector3(.06f,-.035f,-.017f),new Vector3(.03f,.025f,.014f),Ivory);
-            b.Box(new Vector3(0,.135f,-.005f),new Vector3(.04f,.045f,.04f),Yellow);
+            var rings=new Vector3[samples][];
+            for(int k=0;k<samples;k++)
+            {
+                var tangent=(centres[(k+1)%samples]-centres[(k+samples-1)%samples]).normalized;
+                var outward=new Vector3(tangent.y,-tangent.x,0);
+                float radius=.014f+.012f*grips[k],depth=1.15f+.35f*grips[k];
+                rings[k]=new Vector3[sides];
+                for(int j=0;j<sides;j++)
+                {
+                    float a=j*Mathf.PI*2/sides;
+                    rings[k][j]=centres[k]+outward*(Mathf.Cos(a)*radius)+Vector3.forward*(Mathf.Sin(a)*radius*depth);
+                }
+            }
+            for(int k=0;k<samples;k++)
+            {
+                var ra=rings[k];var rb=rings[(k+1)%samples];
+                for(int j=0;j<sides;j++){int i2=(j+1)%sides;b.Quad(ra[j],ra[i2],rb[i2],rb[j],Carbon);}
+            }
+
+            // Centre plate, display and LED strip (the LEDs are static until the tachometer pass).
+            b.PrismXY(XY(-.10f,-.07f,-.12f,-.04f,-.12f,.05f,-.09f,.075f,.09f,.075f,.12f,.05f,.12f,-.04f,.10f,-.07f),-.012f,.014f,Carbon);
+            b.PrismXY(XY(-.075f,-.005f,.075f,-.005f,.075f,.055f,-.075f,.055f),-.016f,-.012f,Screen);
+            for(int i=0;i<9;i++)
+            {
+                float x=-.064f+i*.016f;
+                b.PrismXY(XY(x-.006f,.061f,x+.006f,.061f,x+.006f,.069f,x-.006f,.069f),-.016f,-.012f,i<3?Green:i<6?Yellow:Red);
+            }
+            // Spokes to the grips and the flat bottom.
+            foreach(float s in new[]{1f,-1f})
+                b.PrismXY(XY(s*.115f,-.03f,s*.182f,-.045f,s*.182f,.015f,s*.115f,.03f),-.006f,.010f,Carbon);
+            b.PrismXY(XY(-.03f,-.07f,.03f,-.07f,.025f,-.105f,-.025f,-.105f),-.006f,.010f,Carbon);
+            // Octagonal buttons in two columns, two rotary knobs with ivory pointers.
+            var buttons=new[]{(-.095f,.03f,Yellow),(-.095f,0f,Mirror),(-.095f,-.03f,Red),(.095f,.03f,Green),(.095f,0f,Ivory),(.095f,-.03f,Mirror)};
+            foreach(var (bx,by,m) in buttons)b.PrismXY(Octagon(bx,by,.009f),-.020f,-.012f,m);
+            foreach(float kx in new[]{-.045f,.045f})
+            {
+                b.PrismXY(Octagon(kx,-.04f,.013f),-.024f,-.012f,Metal);
+                b.PrismXY(XY(kx-.002f,-.04f,kx+.002f,-.04f,kx+.002f,-.03f,kx-.002f,-.03f),-.0255f,-.024f,Ivory);
+            }
+            // Shift paddles behind the rim and a yellow top-centre marker.
+            foreach(float s in new[]{1f,-1f})
+                b.PrismXY(XY(s*.07f,.02f,s*.19f,.05f,s*.21f,-.02f,s*.08f,-.04f),.016f,.024f,Carbon);
+            b.PrismXY(XY(-.012f,.108f,.012f,.108f,.012f,.145f,-.012f,.145f),-.02f,.02f,Yellow);
+        }
+
+        static Vector2[] Octagon(float cx,float cy,float r)
+        {
+            var points=new Vector2[8];
+            for(int k=0;k<8;k++){float a=k*Mathf.PI/4+Mathf.PI/8;points[k]=new Vector2(cx+r*Mathf.Cos(a),cy+r*Mathf.Sin(a));}
+            return points;
+        }
+
+        // Pairs of (x, y) values -> polygon points.
+        static Vector2[] XY(params float[] xy)
+        {
+            var points=new Vector2[xy.Length/2];
+            for(int i=0;i<points.Length;i++)points[i]=new Vector2(xy[i*2],xy[i*2+1]);
+            return points;
         }
 
         static void BuildTire(CarMesh b)
@@ -439,6 +586,31 @@ namespace PolygonRacing.Editor
                 Quad(V(-1,-1,-1),V(-1,-1,1),V(1,-1,1),V(1,-1,-1),m);
                 Quad(V(-1,-1,-1),V(-1,1,-1),V(-1,1,1),V(-1,-1,1),m);
                 Quad(V(1,-1,-1),V(1,-1,1),V(1,1,1),V(1,1,-1),m);
+            }
+
+            // Flattened tube (aero wishbone): width rw across, thickness rh vertically.
+            public void FlatTube(Vector3 from,Vector3 to,float rw,float rh,int m,int sides=6)
+            {
+                var d=(to-from).normalized;
+                var up=Mathf.Abs(d.y)<.9f?Vector3.up:Vector3.right;
+                var u=Vector3.Cross(d,up).normalized;var v=Vector3.Cross(u,d);
+                var a=new Vector3[sides];var b=new Vector3[sides];
+                for(int k=0;k<sides;k++)
+                {
+                    float angle=k*Mathf.PI*2/sides;
+                    var offset=u*(Mathf.Cos(angle)*rw)+v*(Mathf.Sin(angle)*rh);
+                    a[k]=from+offset;b[k]=to+offset;
+                }
+                for(int k=0;k<sides;k++){int j=(k+1)%sides;Quad(a[k],a[j],b[j],b[k],m);}
+            }
+
+            // Polygon in the XY plane extruded from z0 to z1 (both faces capped).
+            public void PrismXY(Vector2[] xy,float z0,float z1,int m)
+            {
+                var a=new Vector3[xy.Length];var b=new Vector3[xy.Length];
+                for(int i=0;i<xy.Length;i++){a[i]=new Vector3(xy[i].x,xy[i].y,z0);b[i]=new Vector3(xy[i].x,xy[i].y,z1);}
+                for(int i=0;i<xy.Length;i++){int j=(i+1)%xy.Length;Quad(a[i],a[j],b[j],b[i],m);}
+                Poly(a,m);Poly(b,m);
             }
 
             // Thin square tube between two points.
