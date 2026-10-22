@@ -17,6 +17,7 @@ Shader "Polygon Racing/Gantry Lettering"
             #pragma fragment Frag
             #pragma multi_compile_instancing
             #pragma multi_compile _ STEREO_INSTANCING_ON STEREO_MULTIVIEW_ON
+            #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
@@ -34,6 +35,7 @@ Shader "Polygon Racing/Gantry Lettering"
                 float4 positionCS:SV_POSITION;
                 float2 uv:TEXCOORD0;
                 half4 color:COLOR;
+                float fogFactor:TEXCOORD1;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
             Varyings Vert(Attributes input)
@@ -44,6 +46,7 @@ Shader "Polygon Racing/Gantry Lettering"
                 output.positionCS=TransformObjectToHClip(input.positionOS.xyz);
                 output.uv=input.uv*_MainTex_ST.xy+_MainTex_ST.zw;
                 output.color=input.color;
+                output.fogFactor=ComputeFogFactor(output.positionCS.z);
                 return output;
             }
             half4 Frag(Varyings input):SV_Target
@@ -51,7 +54,7 @@ Shader "Polygon Racing/Gantry Lettering"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 half alpha=SAMPLE_TEXTURE2D(_MainTex,sampler_MainTex,input.uv).a*input.color.a;
                 clip(alpha-.01h);
-                return half4(input.color.rgb,alpha);
+                return half4(MixFog(input.color.rgb,input.fogFactor),alpha);
             }
             ENDHLSL
         }

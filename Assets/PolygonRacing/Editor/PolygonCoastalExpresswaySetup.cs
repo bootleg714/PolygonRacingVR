@@ -85,6 +85,7 @@ namespace PolygonRacing.Editor
                 Directory.CreateDirectory(GeneratedPath);
                 AssetDatabase.Refresh();
                 var scenery=PolygonWorld.BuildCoastalScenery(player.transform.parent);
+                PolygonCarSetup.FillParkedCarSlots(scenery);
                 PersistGeneratedAssets(scenery);
                 ConfigureCoastalView(player);
                 PolygonLookSetup.ApplyToOpenScene(PolygonCircuitLayout.CoastalExpressway);
@@ -154,6 +155,7 @@ namespace PolygonRacing.Editor
                 Directory.CreateDirectory(GeneratedPath);
                 AssetDatabase.Refresh();
                 var scenery=PolygonWorld.BuildCoastalScenery(root);
+                PolygonCarSetup.FillParkedCarSlots(scenery);
                 PersistGeneratedAssets(scenery);
                 ConfigureCoastalView(player);
                 PolygonLookSetup.ApplyToOpenScene(PolygonCircuitLayout.CoastalExpressway);

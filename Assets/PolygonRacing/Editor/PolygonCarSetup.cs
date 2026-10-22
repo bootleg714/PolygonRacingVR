@@ -64,6 +64,47 @@ namespace PolygonRacing.Editor
             if(done>0)Debug.Log("Player car rebuilt in "+done+" circuit(s). Seat, tracking, dashboard and handling are unchanged. Rivals copy the new body automatically.");
         }
 
+        // Scenery v02: static copies of the player car parked in the coastal paddock garages.
+        // Called by the coastal create/refresh menus after the scenery is built.
+        public static void FillParkedCarSlots(Transform scenery)
+        {
+            Transform slots=null;
+            foreach(var t in scenery.GetComponentsInChildren<Transform>(true))
+                if(t.name=="Paddock parked car slots"){slots=t;break;}
+            if(!slots||!Resources.Load<Shader>(PolygonLook.FlatShaderName))return;
+            EnsureFolder();
+            var shared=CarMaterials();var meshes=BuildMeshes();
+            var liveries=new[]{new Color(.98f,.32f,.32f),new Color(.025f,.43f,.48f),new Color(.98f,.65f,.39f)};
+            for(int i=0;i<slots.childCount;i++)
+            {
+                var slot=slots.GetChild(i);
+                for(int c=slot.childCount-1;c>=0;c--)Object.DestroyImmediate(slot.GetChild(c).gameObject);
+                var materials=(Material[])shared.Clone();
+                var livery=CarMaterial("PR_Paddock car livery "+(i%liveries.Length+1),liveries[i%liveries.Length],shared[Carbon].shader);
+                materials[Red]=livery;
+                var car=new GameObject("Parked team car",typeof(MeshFilter),typeof(MeshRenderer));
+                car.transform.SetParent(slot,false);
+                Assign(car,meshes.Body,materials);
+                var column=new GameObject(ColumnName).transform;column.SetParent(car.transform,false);
+                column.localPosition=new Vector3(0,.68f,.03f);column.localRotation=Quaternion.Euler(WheelTilt,0,0);
+                var wheel=new GameObject(WheelName,typeof(MeshFilter),typeof(MeshRenderer));
+                wheel.transform.SetParent(column,false);Assign(wheel,meshes.Steering,materials);
+                foreach(var (zc,xw) in WheelCentres)foreach(float side in new[]{-1f,1f})
+                {
+                    var pivot=new GameObject("Parked wheel").transform;pivot.SetParent(car.transform,false);
+                    pivot.localPosition=new Vector3(side*xw,.39f,zc);
+                    var tire=new GameObject("Tire",typeof(MeshFilter),typeof(MeshRenderer));
+                    tire.transform.SetParent(pivot,false);Assign(tire,meshes.Tire,materials);
+                    var rim=new GameObject(RimName,typeof(MeshFilter),typeof(MeshRenderer));
+                    rim.transform.SetParent(pivot,false);Assign(rim,side<0?meshes.RimLeft:meshes.RimRight,materials);
+                    var upright=new GameObject(UprightName,typeof(MeshFilter),typeof(MeshRenderer));
+                    upright.transform.SetParent(pivot,false);
+                    Assign(upright,zc>0?(side<0?meshes.UprightFrontLeft:meshes.UprightFrontRight)
+                                       :(side<0?meshes.UprightRearLeft:meshes.UprightRearRight),materials);
+                }
+            }
+        }
+
         struct CarMeshes{public Mesh Body,Steering,Tire,RimLeft,RimRight,UprightFrontLeft,UprightFrontRight,UprightRearLeft,UprightRearRight;}
 
         static void ApplyToCar(PolygonDriver driver,Material[] materials,CarMeshes meshes)

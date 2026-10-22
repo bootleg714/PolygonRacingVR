@@ -181,31 +181,14 @@ namespace PolygonRacing
         {
             var village=Group(root,"Bridge approach - Sunbay waterfront",Vector3.zero);
             // Houses step back from the bridge; the nearest footprint is 36 m off road.
+            // Scenery v02: pilasters, cornice, hipped roof with overhang, shuttered windows,
+            // balcony on posts and a sloped striped cafe awning. Same footprints as before.
             for(int i=0;i<6;i++)
             {
                 float x=470+(i%2)*24,z=-48-(i/2)*31,h=8+(i%3)*2;
                 var house=Group(village,"Sunbay waterfront house "+(i+1),new Vector3(x,0,z));
-                Box(house,"Ivory foundation",new Vector3(0,.3f,0),new Vector3(18,.6f,20),cream);
-                Box(house,"Color washed walls",new Vector3(0,.6f+h/2,0),new Vector3(16,h,18),i%3==0?pink:i%3==1?ochre:shallow);
-                // Solid pitched roof, including gables. No coplanar decorative roof layer.
-                var a=new Vector3(-9,h+.6f,-10);var b=new Vector3(9,h+.6f,-10);
-                var c=new Vector3(9,h+.6f,10);var d=new Vector3(-9,h+.6f,10);
-                var e=new Vector3(0,h+4,-10);var f=new Vector3(0,h+4,10);
-                Quad(a,d,f,e);Quad(b,e,f,c);Tri(a,e,b);Tri(d,c,f);
-                MeshObject(house,"Broad terracotta pitched roof",Finish("Sunbay roof "+i),Vector3.zero,Vector3.one,i%2==0?coral:teal);
-                // West-facing balconies look across the sheltered water.
-                Box(house,"Shaded doorway",new Vector3(-8.08f,2.3f,0),new Vector3(.16f,3.4f,2.2f),navy);
-                foreach(int end in new[]{-1,1})
-                {
-                    Box(house,"Recess colored window",new Vector3(-8.08f,h-1,end*5),new Vector3(.16f,2.2f,2.6f),navy);
-                    Box(house,"Ivory window sill",new Vector3(-8.25f,h-2.2f,end*5),new Vector3(.5f,.2f,3),cream);
-                    Box(house,"Balcony side rail",new Vector3(-10,h-1.5f,end*6.8f),new Vector3(4,.65f,.16f),cream);
-                }
-                Box(house,"Waterfront balcony",new Vector3(-10,h-2.7f,0),new Vector3(4,.35f,14),cream);
-                Box(house,"Teal balcony rail",new Vector3(-11.9f,h-1.5f,0),new Vector3(.2f,.65f,13.6f),teal);
-                // Striped awnings face the road on the north side.
-                for(int stripe=0;stripe<5;stripe++)
-                    Box(house,"Alternating cafe awning",new Vector3(-6.4f+stripe*3.2f,4.4f,10.5f),new Vector3(3.2f,.25f,3),stripe%2==0?cream:teal);
+                var wall=i%3==0?pink:i%3==1?ochre:shallow;var roof=i%2==0?coral:teal;var shutter=i%3==2?cream:teal;
+                SunbayHouse(house,h,wall,roof,shutter);
             }
             Box(village,"Waterside promenade",new Vector3(450,.14f,-91),new Vector3(10,.36f,108),cream);
             Box(village,"Timber landing",new Vector3(432,.08f,-82),new Vector3(26,.24f,6),bark);
@@ -217,27 +200,89 @@ namespace PolygonRacing
             {
                 float x=280+i*48,z=i==1?-91:-66;
                 var boat=Group(village,"Moored Sunbay sailboat "+(i+1),new Vector3(x,-.895f,z));
-                boat.localRotation=Quaternion.Euler(0,20+i*39,0);
-                // Low tapered hull with a visible flat deck rather than a rock silhouette.
-                var p0=new Vector3(-1.8f,.7f,-5);var p1=new Vector3(1.8f,.7f,-5);
-                var p2=new Vector3(2,.7f,3);var p3=new Vector3(0,.7f,6);var p4=new Vector3(-2,.7f,3);
-                var keel=new Vector3(0,-.3f,0);
-                Tri(p0,p1,keel);Tri(p1,p2,keel);Tri(p2,p3,keel);Tri(p3,p4,keel);Tri(p4,p0,keel);
-                Tri(p0,p4,p3);Tri(p0,p3,p2);Tri(p0,p2,p1);
-                MeshObject(boat,"Faceted ivory sailboat hull",Finish("Sunbay hull "+i),Vector3.zero,Vector3.one,cream);
-                Box(boat,"Slim sailboat mast",new Vector3(0,6.8f,0),new Vector3(.13f,12.2f,.13f),navy);
-                Box(boat,"Small teal cabin",new Vector3(0,1.1f,-2),new Vector3(2.3f,.8f,2.8f),teal);
-                // Two-sided single sail sheet. No layered color panels.
-                var a=new Vector3(.09f,2,.2f);var b=new Vector3(.09f,12.7f,.2f);var c=new Vector3(.09f,2,5.1f);
-                Tri(a,b,c);Tri(c,b,a);
-                MeshObject(boat,"Full triangular sail",Finish("Sunbay sail "+i),Vector3.zero,Vector3.one,i==1?pink:cream);
-                // Separate little foresail stays clear of the main sheet.
-                a=new Vector3(-.09f,2,-.4f);b=new Vector3(-.09f,10,-.4f);c=new Vector3(-.09f,2,-4.6f);
-                Tri(a,b,c);Tri(c,b,a);
-                MeshObject(boat,"Teal foresail",Finish("Sunbay foresail "+i),Vector3.zero,Vector3.one,teal);
+                boat.localRotation=Quaternion.Euler(0,20+i*39,0);boat.localScale=Vector3.one*.9f;
+                // Scenery v02: same sailboat models as the offshore fleet.
+                MeshObject(boat,"Faceted ivory sailboat hull",boatHull,Vector3.zero,Vector3.one,cream);
+                MeshObject(boat,"Small teal cabin",boatCabin,Vector3.zero,Vector3.one,teal);
+                MeshObject(boat,"Slim sailboat mast",boatRigging,Vector3.zero,Vector3.one,navy);
+                MeshObject(boat,"Full triangular sail",boatSails,Vector3.zero,Vector3.one,i==1?pink:cream);
             }
             MergeLandmarkMeshes(village,"Sunbay");
         }
+        static void SunbayHouse(Transform house,float h,Material wall,Material roof,Material shutter)
+        {
+            var kit=new PolygonSceneryKit("Sunbay house");
+            float wallTop=.6f+h;
+            kit.Box(cream,new Vector3(0,.3f,0),new Vector3(18,.6f,20));
+            kit.Box(wall,new Vector3(0,.6f+h/2,0),new Vector3(16,h,18));
+            foreach(int sx in new[]{-1,1})foreach(int sz in new[]{-1,1})
+                kit.Box(cream,new Vector3(sx*8,.6f+h/2,sz*9),new Vector3(.7f,h,.7f));
+            kit.Box(cream,new Vector3(0,wallTop+.2f,0),new Vector3(16.6f,.4f,18.6f));
+            // Hipped roof with an overhang past the cornice.
+            float eave=wallTop+.4f,ridge=eave+3.6f;
+            var e0=new Vector3(-9.2f,eave,-10.2f);var e1=new Vector3(9.2f,eave,-10.2f);
+            var e2=new Vector3(9.2f,eave,10.2f);var e3=new Vector3(-9.2f,eave,10.2f);
+            var r0=new Vector3(0,ridge,-4.5f);var r1=new Vector3(0,ridge,4.5f);
+            var centre=new Vector3(0,eave+1.2f,0);
+            kit.Quad(roof,e3,e0,r0,r1,centre);kit.Quad(roof,e1,e2,r1,r0,centre);
+            kit.Tri(roof,e0,e1,r0,centre);kit.Tri(roof,e2,e3,r1,centre);
+            kit.Quad(roof,e0,e1,e2,e3,centre);
+            kit.Box(cream,new Vector3(3.5f,eave+2.4f,-3),new Vector3(1.2f,3.4f,1.2f));
+            kit.Box(roof,new Vector3(3.5f,eave+4.15f,-3),new Vector3(1.5f,.2f,1.5f));
+            // Shuttered windows on every face; the west (water) side also gets a door.
+            for(float y=2.6f;y+1.3f<wallTop-.4f;y+=3.3f)
+            {
+                foreach(float zz in new[]{-5f,0f,5f})
+                {
+                    if(y<3&&zz==0)continue;
+                    HouseWindow(kit,new Vector3(-8,y,zz),Vector3.left,Vector3.forward,shutter);
+                    HouseWindow(kit,new Vector3(8,y,zz),Vector3.right,Vector3.forward,shutter);
+                }
+                foreach(float xx in new[]{-4.5f,4.5f})
+                {
+                    HouseWindow(kit,new Vector3(xx,y,-9),Vector3.back,Vector3.right,shutter);
+                    if(y>3)HouseWindow(kit,new Vector3(xx,y,9),Vector3.forward,Vector3.right,shutter);
+                }
+            }
+            kit.Box(navy,new Vector3(-8.06f,2.1f,0),new Vector3(.2f,3,1.8f));
+            kit.Box(roof,new Vector3(-8.95f,3.85f,0),new Vector3(1.9f,.16f,2.8f));
+            // Balcony on the water side, with posts and rails.
+            const float by=4.25f;
+            kit.Box(cream,new Vector3(-9.8f,by,0),new Vector3(3.6f,.3f,12));
+            foreach(int end in new[]{-1,1})
+            {
+                kit.Beam(cream,new Vector3(-8.1f,by-1.4f,end*4.5f),new Vector3(-11,by-.2f,end*4.5f),.18f,.18f);
+                kit.Box(teal,new Vector3(-9.8f,by+1.1f,end*5.95f),new Vector3(3.4f,.1f,.1f));
+            }
+            for(int k=0;k<=10;k++)kit.Box(cream,new Vector3(-11.5f,by+.62f,-5.9f+k*1.18f),new Vector3(.08f,.95f,.08f));
+            kit.Box(teal,new Vector3(-11.5f,by+1.1f,0),new Vector3(.12f,.1f,12));
+            // Sloped striped cafe awning toward the road, with a scalloped valance and umbrellas.
+            for(int stripe=0;stripe<5;stripe++)
+            {
+                var m=stripe%2==0?cream:teal;float sx0=-8+stripe*3.2f,sx1=sx0+3.2f;
+                kit.Box(m,new Vector3((sx0+sx1)*.5f,4.0f,10.5f),new Vector3(3.2f,.12f,3.1f),Quaternion.Euler(15,0,0));
+                float edgeY=4.0f-1.55f*Mathf.Sin(15*Mathf.Deg2Rad)-.06f,edgeZ=10.5f+1.55f*Mathf.Cos(15*Mathf.Deg2Rad);
+                kit.Sheet(m,new Vector3(sx0,edgeY,edgeZ),new Vector3(sx1,edgeY,edgeZ),new Vector3((sx0+sx1)*.5f,edgeY-.38f,edgeZ));
+            }
+            foreach(float ux in new[]{-4.5f,4.5f})
+            {
+                kit.Column(cream,new Vector3(ux,0,13),.05f,.05f,2.8f,6);
+                kit.Column(ux<0?roof:shutter,new Vector3(ux,2.4f,13),1.4f,.06f,.75f,8);
+                kit.Column(cream,new Vector3(ux,0,13),.55f,.55f,.75f,8);
+            }
+            kit.Emit(house);
+        }
+
+        static void HouseWindow(PolygonSceneryKit kit,Vector3 centre,Vector3 outward,Vector3 along,Material shutter)
+        {
+            var rotation=Quaternion.LookRotation(outward);
+            kit.Box(navy,centre+outward*.04f,new Vector3(1.4f,1.9f,.14f),rotation);
+            foreach(int side in new[]{-1,1})
+                kit.Box(shutter,centre+along*(side*1.05f)+outward*.06f,new Vector3(.6f,1.9f,.16f),rotation);
+            kit.Box(cream,centre+Vector3.down*1.06f+outward*.15f,new Vector3(1.9f,.14f,.36f),rotation);
+            kit.Box(cream,centre+Vector3.up*1.08f+outward*.1f,new Vector3(1.8f,.16f,.24f),rotation);
+        }
+
         static void MergeLandmarkMeshes(Transform root,string label)
         {
             // Bake this small landmark to one mesh per palette material at generation time.
@@ -461,36 +506,46 @@ namespace PolygonRacing
             }
             var shirts=new[]{cream,teal,pink,ochre,navy,shallow};
             var skin=new[]{sand,bark,ochre};
+            var benches=new[]{pink,ochre,navy};
             foreach(int sign in new[]{-1,1})
             {
                 var stand=Frame(root,"Coral Coast sail grandstand",50,sign*36);
+                // Scenery v02: stepped concrete, coloured bench rows, seated low-poly fans,
+                // front rail and a ribbed back wall, all baked by the kit.
+                var kit=new PolygonSceneryKit("Seaside grandstand");
+                var facing=new Vector3(-sign,0,0);
                 for(int bay=0;bay<3;bay++)
                 {
                     float z=(bay-1)*30;
                     for(int row=0;row<6;row++)
                     {
                         float x=sign*(-5.5f+row*1.9f),top=.65f+row*.78f;
-                        Box(stand,"Solid stepped seating",new Vector3(x,top/2,z),new Vector3(1.9f,top,26),row%2==0?teal:cream);
-                        // Two narrow aisle gaps between bays keep the mass readable.
+                        kit.Box(row%2==0?teal:cream,new Vector3(x,top/2,z),new Vector3(1.9f,top,26));
+                        kit.Box(benches[bay],new Vector3(x+sign*.45f,top+.225f,z),new Vector3(.5f,.45f,25.4f));
+                        kit.Box(benches[bay],new Vector3(x+sign*.78f,top+.6f,z),new Vector3(.08f,.5f,25.4f));
                         for(int seat=0;seat<18;seat++)
                         {
                             int id=bay*108+row*18+seat+(sign>0?5:0);if(id%11==0)continue;
-                            float at=z-11.9f+seat*1.4f,jitter=(id%5-2)*.045f;
-                            float px=x+jitter;var shirt=shirts[(id*7+row)%shirts.Length];
-                            Box(stand,"Spectator shirt",new Vector3(px,top+.47f,at),new Vector3(.53f,.68f,.49f),shirt);
-                            Box(stand,"Spectator head",new Vector3(px-sign*.07f,top+.99f,at),new Vector3(.34f,.34f,.34f),skin[id%skin.Length]);
-                            if(id%5==0)Box(stand,"Spectator sun cap",new Vector3(px-sign*.1f,top+1.19f,at),new Vector3(.43f,.12f,.4f),id%2==0?cream:teal);
-                            if(id%7==0)
-                            {
-                                var arm=Box(stand,"Raised cheering arm",new Vector3(px,top+.96f,at+.38f),new Vector3(.17f,.8f,.17f),shirt);
-                                arm.transform.localRotation=Quaternion.Euler(sign*18,0,0);
-                            }
+                            float at=z-11.9f+seat*1.4f,jitter=(id%5-2)*.03f;
+                            var shirt=shirts[(id*7+row)%shirts.Length];
+                            kit.Person(new Vector3(x+sign*.45f+jitter,top,at),facing,.95f+(id%4)*.035f,
+                                shirt,skin[id%skin.Length],id%5==0?(id%2==0?cream:teal):bark,navy,id%5==0,id%7==0);
                         }
                     }
                     FestivalSail(stand,sign,z,bay);
-                    // A coral fascia faces the road below each bay, clear of seated heads.
+                    // A coral fascia faces the road below each bay, with a light rail above it.
                     Box(stand,"Coral front fascia",new Vector3(sign*-6.5f,.55f,z),new Vector3(.16f,1.1f,26),pink);
+                    for(int post=0;post<=10;post++)
+                        kit.Box(cream,new Vector3(sign*-6.5f,1.45f,z-12.5f+post*2.5f),new Vector3(.07f,.7f,.07f));
+                    kit.Box(cream,new Vector3(sign*-6.5f,1.82f,z),new Vector3(.1f,.08f,25.2f));
+                    // Ribbed back wall behind the top row.
+                    float wallX=sign*5.25f,wallTop=.65f+5*.78f+2.2f;
+                    kit.Box(teal,new Vector3(wallX,wallTop/2,z),new Vector3(.3f,wallTop,26));
+                    kit.Box(cream,new Vector3(wallX,wallTop+.12f,z),new Vector3(.5f,.24f,26.3f));
+                    for(int rib=0;rib<=6;rib++)
+                        kit.Box(cream,new Vector3(wallX+sign*.22f,wallTop/2,z-12.6f+rib*4.2f),new Vector3(.2f,wallTop,.35f));
                 }
+                kit.Emit(stand);
                 MergeLandmarkMeshes(stand,"Seaside grandstand");
             }
         }
@@ -521,42 +576,6 @@ namespace PolygonRacing
             }
             return Finish("Paddock ten sided tire");
         }
-        static void ParkedTeamCar(Transform parent,Material team,Mesh wheel)
-        {
-            var car=Group(parent,"Static team coupe",new Vector3(2,.12f,0));car.localRotation=Quaternion.Euler(0,90,0);
-            // Low wedge body with a solid dark cabin and four separate tires.
-            var zs=new[]{-2.25f,-1.4f,.8f,2.25f};var widths=new[]{.88f,1.03f,1.03f,.82f};
-            var tops=new[]{.78f,.98f,.86f,.56f};
-            for(int i=0;i<3;i++)
-            {
-                var a=new Vector3(-widths[i],.35f,zs[i]);var b=new Vector3(widths[i],.35f,zs[i]);
-                var c=new Vector3(widths[i],tops[i],zs[i]);var d=new Vector3(-widths[i],tops[i],zs[i]);
-                var aa=new Vector3(-widths[i+1],.35f,zs[i+1]);var bb=new Vector3(widths[i+1],.35f,zs[i+1]);
-                var cc=new Vector3(widths[i+1],tops[i+1],zs[i+1]);var dd=new Vector3(-widths[i+1],tops[i+1],zs[i+1]);
-                Quad(a,aa,dd,d);Quad(b,c,cc,bb);Quad(d,dd,cc,c);Quad(a,b,bb,aa);
-                if(i==0)Quad(a,d,c,b);if(i==2)Quad(aa,bb,cc,dd);
-            }
-            MeshObject(car,"Team color wedge body",Finish("Parked race coupe body"),Vector3.zero,Vector3.one,team);
-            var p0=new Vector3(-.81f,.98f,-1.25f);var p1=new Vector3(.81f,.98f,-1.25f);
-            var p2=new Vector3(.81f,.9f,.9f);var p3=new Vector3(-.81f,.9f,.9f);
-            var q0=new Vector3(-.66f,1.55f,-.8f);var q1=new Vector3(.66f,1.55f,-.8f);
-            var q2=new Vector3(.66f,1.55f,.15f);var q3=new Vector3(-.66f,1.55f,.15f);
-            Quad(p0,q0,q1,p1);Quad(p1,q1,q2,p2);Quad(p2,q2,q3,p3);Quad(p3,q3,q0,p0);
-            MeshObject(car,"Dark faceted cockpit glass",Finish("Parked coupe glazing"),Vector3.zero,Vector3.one,navy);
-            Box(car,"Ivory coupe roof",new Vector3(0,1.59f,-.325f),new Vector3(1.34f,.08f,.97f),cream);
-            foreach(int side in new[]{-1,1})foreach(float z in new[]{-1.4f,1.4f})
-            {
-                MeshObject(car,"Parked racing tire",wheel,new Vector3(side*1.01f,.36f,z),Vector3.one,navy);
-                Box(car,"Ivory wheel hub",new Vector3(side*1.16f,.36f,z),new Vector3(.04f,.26f,.26f),cream);
-            }
-            Box(car,"Rear wing",new Vector3(0,1.18f,-1.95f),new Vector3(2.25f,.13f,.4f),navy);
-            foreach(int side in new[]{-1,1})
-            {
-                Box(car,"Wing support",new Vector3(side*.65f,1,-1.95f),new Vector3(.1f,.3f,.15f),team);
-                Box(car,"Ivory front lamp",new Vector3(side*.52f,.51f,2.28f),new Vector3(.4f,.15f,.1f),cream);
-                Box(car,"Coral rear lamp",new Vector3(side*.5f,.6f,-2.29f),new Vector3(.4f,.15f,.1f),pink);
-            }
-        }
         static void BuildCoastalPaddock(Transform root)
         {
             var paddock=Group(root,"Coastal race paddock and timing tower",Vector3.zero);
@@ -569,53 +588,79 @@ namespace PolygonRacing
             }
             var apron=Frame(paddock,"Sandy paddock apron",134,-67);
             Box(apron,"Pale paddock hardstanding",new Vector3(0,.015f,0),new Vector3(50,.1f,116),sand);
+            // Scenery v02: chamfered control tower with raked wraparound glazing, and modern
+            // open-front team garages. Same positions as the v11 paddock.
             var tower=Frame(paddock,"Ivory and teal race control tower",116,-53);
-            Box(tower,"Tower base",new Vector3(0,.3f,0),new Vector3(12,.6f,14),cream);
-            Box(tower,"Ivory tower shaft",new Vector3(0,5.8f,0),new Vector3(8,11,10),cream);
-            Box(tower,"Race control entrance",new Vector3(4.09f,2.1f,0),new Vector3(.18f,3,1.8f),navy);
-            foreach(float y in new[]{4.8f,9.5f})foreach(int side in new[]{-1,1})
-                Box(tower,"Tower stairwell window",new Vector3(4.09f,y,side*2.8f),new Vector3(.18f,1.3f,1.8f),navy);
-            Box(tower,"Coral tower belt",new Vector3(0,7.5f,0),new Vector3(8.3f,.5f,10.3f),pink);
-            Box(tower,"Teal observation floor",new Vector3(0,11.6f,0),new Vector3(12,.6f,14),teal);
-            Box(tower,"Dark observation glazing",new Vector3(0,13.2f,0),new Vector3(10,2.6f,12),navy);
-            foreach(int side in new[]{-1,1})
+            var kit=new PolygonSceneryKit("Coastal paddock tower");
+            kit.Chamfered(cream,Vector3.zero,6.5f,7.5f,6.3f,7.3f,0,.6f,.8f);
+            kit.Chamfered(cream,Vector3.zero,4,5,3.7f,4.7f,.6f,11.4f,1);
+            kit.Chamfered(pink,Vector3.zero,4.15f,5.15f,4.0f,5.0f,7.2f,7.8f,1);
+            foreach(int side in new[]{-1,1})kit.Box(teal,new Vector3(3.95f,6,side*2.6f),new Vector3(.36f,10.8f,.5f));
+            kit.Box(navy,new Vector3(4.05f,2.1f,0),new Vector3(.3f,3,1.8f));
+            kit.Box(teal,new Vector3(5.0f,3.8f,0),new Vector3(2.1f,.2f,3.2f));
+            foreach(float y in new[]{4.9f,9.3f})foreach(int side in new[]{-1,1})
+                kit.Box(navy,new Vector3(3.95f,y,side*1.2f),new Vector3(.3f,1.3f,.9f));
+            kit.Chamfered(teal,Vector3.zero,6,7,6,7,11.4f,12.0f,1.2f);
+            kit.Chamfered(navy,Vector3.zero,5,6,6,7,12.0f,14.6f,1.2f);
+            // Raked mullions follow the outward-leaning glass.
+            var low=new[]{new Vector2(-3.8f,-6.02f),new Vector2(3.8f,-6.02f),new Vector2(5.02f,-4.8f),new Vector2(5.02f,4.8f),
+                          new Vector2(3.8f,6.02f),new Vector2(-3.8f,6.02f),new Vector2(-5.02f,4.8f),new Vector2(-5.02f,-4.8f)};
+            for(int k=0;k<low.Length;k++)
             {
-                foreach(float z in new[]{-6f,-2f,2f,6f})Box(tower,"Ivory window mullion",new Vector3(side*5.1f,13.2f,z),new Vector3(.22f,2.6f,.22f),cream);
-                Box(tower,"Observation end mullion",new Vector3(0,13.2f,side*6.1f),new Vector3(.22f,2.6f,.22f),cream);
+                var l=low[k];var hi=new Vector2(l.x*1.2f,l.y*7.04f/6.02f);
+                kit.Beam(cream,new Vector3(l.x,12.0f,l.y),new Vector3(hi.x,14.6f,hi.y),.16f,.16f);
             }
-            Box(tower,"Broad teal shade roof",new Vector3(0,14.8f,0),new Vector3(14,.6f,16),teal);
-            Box(tower,"Coral roof crown",new Vector3(0,15.2f,0),new Vector3(9,.2f,11),pink);
-            Box(tower,"Roadside observation balcony",new Vector3(7,11.6f,0),new Vector3(2,.6f,14),cream);
-            Box(tower,"Balcony top rail",new Vector3(7.9f,13,0),new Vector3(.16f,.18f,14),teal);
-            for(int i=0;i<8;i++)Box(tower,"Balcony upright",new Vector3(7.9f,12.4f,-6.5f+i*13/7f),new Vector3(.12f,1.2f,.12f),cream);
-            Box(tower,"Radio mast",new Vector3(-2,18,0),new Vector3(.16f,5.6f,.16f),cream);
-            foreach(float y in new[]{18f,19.4f,20.6f})Box(tower,"Radio antenna crossbar",new Vector3(-2,y,0),new Vector3(2.5f,.1f,.12f),teal);
+            foreach(float zz in new[]{-2.4f,2.4f})foreach(int side in new[]{-1,1})
+                kit.Beam(cream,new Vector3(side*5.04f,12.0f,zz),new Vector3(side*6.05f,14.6f,zz*1.17f),.14f,.14f);
+            kit.Chamfered(teal,Vector3.zero,7.5f,8.5f,7.2f,8.2f,14.6f,15.2f,1.5f);
+            kit.Chamfered(pink,Vector3.zero,4.5f,5.5f,4,5,15.2f,15.5f,.8f);
+            kit.Box(cream,new Vector3(7.4f,11.7f,0),new Vector3(2.8f,.4f,14));
+            for(int i=0;i<=8;i++)kit.Box(cream,new Vector3(8.65f,12.45f,-6.8f+i*1.7f),new Vector3(.1f,1.1f,.1f));
+            kit.Box(teal,new Vector3(8.65f,13.0f,0),new Vector3(.14f,.12f,13.8f));
+            kit.Column(cream,new Vector3(-2,15.5f,0),.14f,.07f,6,6);
+            foreach(float y in new[]{18f,19.4f,20.6f})kit.Box(teal,new Vector3(-2,y,0),new Vector3(2.5f,.1f,.12f));
+            kit.Box(cream,new Vector3(-3.6f,16.2f,2.6f),new Vector3(1.2f,1.2f,1.2f));
+            kit.Emit(tower);
+
             var wheel=PaddockWheelMesh();
+            // Parked cars are added by the editor refresh from the player car models (see
+            // PolygonCarSetup.FillParkedCarSlots). Slots live outside the merged paddock.
+            var slots=Group(root,"Paddock parked car slots",Vector3.zero);
             for(int team=0;team<3;team++)
             {
                 var tint=team==0?pink:team==1?teal:ochre;
                 var tent=Frame(paddock,"Coastal team bay "+(team+1),96+team*36,-77);
-                // Open shelters face the road. No walls obscure the parked cars.
-                var a=new Vector3(-7,4.5f,-11);var b=new Vector3(7,4.5f,-11);
-                var c=new Vector3(7,4.5f,11);var d=new Vector3(-7,4.5f,11);
-                var e=new Vector3(0,6.5f,-11);var f=new Vector3(0,6.5f,11);
-                Quad(a,d,f,e);Quad(e,f,c,b);Tri(a,e,b);Tri(d,c,f);
-                Quad(e,f,d,a);Quad(b,c,f,e);
-                MeshObject(tent,"Peaked team shelter",Finish("Coastal team roof "+team),Vector3.zero,Vector3.one,tint);
-                foreach(int x in new[]{-7,7})foreach(int z in new[]{-11,11})Box(tent,"Ivory shelter pole",new Vector3(x,2.25f,z),new Vector3(.18f,4.5f,.18f),cream);
-                ParkedTeamCar(tent,tint,wheel);
-                Box(tent,"Team tool chest",new Vector3(-4,1,-7),new Vector3(2.4f,1.8f,1.4f),tint);
-                Box(tent,"Ivory workbench",new Vector3(-4,1.1f,7),new Vector3(3,.22f,1.6f),cream);
-                foreach(float z in new[]{6.4f,7.6f})Box(tent,"Workbench leg",new Vector3(-4,.55f,z),new Vector3(.2f,1.1f,.2f),navy);
+                var garage=new PolygonSceneryKit("Coastal team garage");
+                garage.Box(cream,new Vector3(0,.06f,0),new Vector3(15,.12f,23));
+                garage.Box(tint,new Vector3(-7.2f,2.6f,0),new Vector3(.4f,5.2f,22.4f));
+                garage.Box(cream,new Vector3(-6.94f,3.7f,0),new Vector3(.14f,.6f,20));
+                foreach(int side in new[]{-1,1})
+                {
+                    garage.Box(cream,new Vector3(-.1f,2.6f,side*11.2f),new Vector3(14.6f,5.2f,.4f));
+                    garage.Box(tint,new Vector3(7.25f,2.6f,side*11.2f),new Vector3(.5f,5.2f,.6f));
+                }
+                garage.Box(cream,new Vector3(.6f,5.45f,0),new Vector3(16.4f,.5f,23.4f));
+                garage.Box(tint,new Vector3(8.85f,5.1f,0),new Vector3(.3f,1.0f,23.4f));
+                garage.Box(navy,new Vector3(2,5.95f,-5),new Vector3(2.6f,.7f,2.2f));
+                garage.Box(navy,new Vector3(-3,5.95f,6),new Vector3(2.2f,.7f,2.2f));
+                garage.Box(tint,new Vector3(-4,1,-7),new Vector3(2.4f,1.8f,1.4f));
+                garage.Box(cream,new Vector3(-4,1.92f,-7),new Vector3(2.5f,.08f,1.5f));
+                garage.Box(cream,new Vector3(-4,1.1f,7),new Vector3(3,.22f,1.6f));
+                foreach(float z in new[]{6.4f,7.6f})garage.Box(navy,new Vector3(-4,.55f,z),new Vector3(.2f,1.1f,.2f));
+                garage.Emit(tent);
                 for(int tire=0;tire<3;tire++)
                 {
                     MeshObject(tent,"Stacked spare tire",wheel,new Vector3(-4,.24f+tire*.3f,-3),Vector3.one,navy);
                     tent.GetChild(tent.childCount-1).localRotation=Quaternion.Euler(0,0,90);
                 }
-                Box(tent,"Team flag mast",new Vector3(9,4.5f,-10),new Vector3(.12f,9,.12f),cream);
+                var slot=new GameObject("Parked team car slot "+team).transform;
+                slot.SetParent(slots,false);
+                slot.position=tent.TransformPoint(new Vector3(1.6f,.12f,0));
+                slot.rotation=tent.rotation*Quaternion.Euler(0,90,0);
+                Box(tent,"Team flag mast",new Vector3(9.4f,4.5f,-10),new Vector3(.12f,9,.12f),cream);
                 // Original diagonal maritime flags: adjacent color fields, no text overlays.
-                var p=new Vector3(9.1f,6.3f,-10);var q=new Vector3(9.1f,8.7f,-10);
-                var r=new Vector3(9.1f,8.1f,-6);var t=new Vector3(9.1f,5.7f,-6);
+                var p=new Vector3(9.5f,6.3f,-10);var q=new Vector3(9.5f,8.7f,-10);
+                var r=new Vector3(9.5f,8.1f,-6);var t=new Vector3(9.5f,5.7f,-6);
                 Tri(p,q,r);Tri(r,q,p);
                 MeshObject(tent,"Team flag color",Finish("Team diagonal flag color "+team),Vector3.zero,Vector3.one,tint);
                 Tri(p,r,t);Tri(t,r,p);
@@ -644,11 +689,19 @@ namespace PolygonRacing
             foreach(var child in world.GetComponentsInChildren<Transform>())
                 if(child&&child.name=="Expressway start gantry")Object.DestroyImmediate(child.gameObject);
             var gate=Frame(root,"POLYGON COAST - festival start gantry",32,0);
+            // Scenery v02: tapered chamfered pylons with coral collars and teal inner fins.
+            var details=new PolygonSceneryKit("Gantry details");
             foreach(int side in new[]{-1,1})
             {
-                Box(gate,"Ivory gantry footing",new Vector3(side*21,.35f,0),new Vector3(2,.7f,2.2f),cream);
-                Box(gate,"Ivory coastal upright",new Vector3(side*21,4.1f,0),new Vector3(1,8.2f,1.2f),cream);
-                Box(gate,"Coral upright collar",new Vector3(side*21,1.05f,0),new Vector3(1.2f,.7f,1.4f),pink);
+                var foot=new Vector3(side*21,0,0);
+                details.Chamfered(cream,foot,1.3f,1.5f,1.2f,1.4f,0,.7f,.3f);
+                details.Chamfered(cream,foot,.75f,.9f,.45f,.6f,.7f,9.6f,.25f);
+                details.Chamfered(pink,foot,.86f,1.02f,.82f,.98f,.9f,1.6f,.3f);
+                details.Chamfered(pink,foot,.62f,.76f,.6f,.74f,6.6f,7.0f,.2f);
+                details.Box(teal,new Vector3(side*20.25f,4.6f,0),new Vector3(.4f,6.2f,.26f));
+                // Festival banner hanging on the outer face.
+                details.SheetQuad(side>0?teal:pink,new Vector3(side*21.9f,6.2f,-.5f),new Vector3(side*21.9f,6.2f,.5f),
+                    new Vector3(side*21.9f,2.6f,.5f),new Vector3(side*21.9f,2.2f,-.5f));
             }
             // The faceted teal header sweeps upward in the center.
             var breaks=new[]{-22f,-14f,-7f,0,7f,14f,22f};
@@ -697,6 +750,11 @@ namespace PolygonRacing
                 MeshObject(gate,name,lens,new Vector3((i-2)*1.7f,7.3f,-.91f),Vector3.one,lit);
                 lenses[i]=gate.Find(name).GetComponent<MeshRenderer>();
             }
+            // Visor hoods above each signal and a chamfered trim along the housing top.
+            for(int i=0;i<5;i++)
+                details.Box(dark,new Vector3((i-2)*1.7f,7.86f,-.98f),new Vector3(1.15f,.06f,.56f),Quaternion.Euler(-8,0,0));
+            details.Box(cream,new Vector3(0,8.16f,-.1f),new Vector3(9.5f,.12f,1.3f));
+            details.Emit(gate);
             var controller=gate.gameObject.AddComponent<PolygonStartLights>();
             controller.Lenses=lenses;controller.DarkMaterial=dark;controller.RedMaterial=lit;
         }
@@ -720,7 +778,6 @@ namespace PolygonRacing
             MeshObject(bridge,"Adjoining bridge footpaths",Finish("Bridge footpath tops"),Vector3.zero,Vector3.one,cream);
             var cuts=new SortedSet<float>{-110,110};
             for(int n=-4;n<=4;n++){cuts.Add(n*25-.3f);cuts.Add(n*25+.3f);}
-            foreach(int end in new[]{-1,1}){cuts.Add(end*88-.9f);cuts.Add(end*88+.9f);}
             var breaks=new List<float>(cuts);
             foreach(int side in new[]{-1,1})
             {
@@ -728,22 +785,31 @@ namespace PolygonRacing
                 {
                     float mid=(breaks[i]+breaks[i+1])*.5f;bool blocked=false;
                     for(int n=-4;n<=4;n++)if(Mathf.Abs(mid-n*25)<.3f)blocked=true;
-                    if(Mathf.Abs(mid-88)<.9f||Mathf.Abs(mid+88)<.9f)blocked=true;
                     if(!blocked)Box(bridge,"Adjoining ivory bridge parapet",new Vector3(side*18,.3f,mid),new Vector3(.4f,.6f,breaks[i+1]-breaks[i]),cream);
                 }
                 for(int n=-4;n<=4;n++)
-                {
                     Box(bridge,"Teal bridge marker",new Vector3(side*18,.7f,n*25),new Vector3(.6f,1.4f,.6f),teal);
-                    Box(bridge,"Bridge support pier",new Vector3(side*16,-3.55f,n*25),new Vector3(1.3f,6,1.3f),cream);
-                }
             }
-            foreach(int end in new[]{-1,1})
+            // Scenery v02: twin teal tied arches with hangers and overhead braces replace the
+            // two gates; octagonal piers replace the square ones.
+            var arches=new PolygonSceneryKit("Bridge arches");
+            System.Func<float,float> archY=q=>1.3f+15.5f*(1-(q/100)*(q/100));
+            foreach(int side in new[]{-1,1})
             {
-                // Post tops meet the beam underside at 11.3 m; their faces never overlap.
-                Box(bridge,"Bridge gate left",new Vector3(-18,5.65f,end*88),new Vector3(1.4f,11.3f,1.8f),teal);
-                Box(bridge,"Bridge gate right",new Vector3(18,5.65f,end*88),new Vector3(1.4f,11.3f,1.8f),teal);
-                Box(bridge,"Bridge gate lintel",new Vector3(0,12,end*88),new Vector3(37.4f,1.4f,1.8f),cream);
+                const int segments=20;
+                for(int k=0;k<segments;k++)
+                {
+                    float z0=-100+k*200f/segments,z1=z0+200f/segments;
+                    arches.Beam(teal,new Vector3(side*18,archY(z0),z0),new Vector3(side*18,archY(z1),z1),.9f,.9f);
+                }
+                for(int n=-3;n<=3;n++)
+                    arches.Beam(cream,new Vector3(side*18,1.3f,n*25),new Vector3(side*18,archY(n*25)-.3f,n*25),.12f,.12f);
+                for(int n=-4;n<=4;n++)
+                    arches.Column(cream,new Vector3(side*16,-6.55f,n*25),.95f,.7f,6,8);
             }
+            foreach(float zz in new[]{-50f,0f,50f})
+                arches.Beam(teal,new Vector3(-18,archY(zz),zz),new Vector3(18,archY(zz),zz),.6f,.6f);
+            arches.Emit(bridge);
             // The generic road rails were a second set of barriers beside this bridge.
             var world=root.parent;
             foreach(var child in world.GetComponentsInChildren<Transform>())

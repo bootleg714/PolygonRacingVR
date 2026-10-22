@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -41,10 +42,12 @@ namespace PolygonRacing.Editor
                 if(t.name=="Polygon pine"&&RebuildPine(t,trunk,crowns,pines))pines++;
                 else if(t.name=="Distant faceted hill"&&RebuildHill(t,mountains,hills))hills++;
             }
+            int garages=RebuildPitGarages();
+            bool stand=RebuildGrandstand();
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(scene);
             if(!EditorSceneManager.SaveScene(scene)){Debug.LogError("Unity could not save the Forest Circuit.");return;}
-            Debug.Log($"Forest scenery refreshed: {pines} pines and {hills} mountains. Backup: {backup}");
+            Debug.Log($"Forest scenery refreshed: {pines} pines, {hills} mountains, {garages} pit garages{(stand?", grandstand":"")}. Backup: {backup}");
         }
 
         static bool RebuildPine(Transform pine,Mesh trunkMesh,Mesh[] crowns,int index)
@@ -92,6 +95,129 @@ namespace PolygonRacing.Editor
             go.transform.localScale=new Vector3(95,height,95);
             go.transform.localRotation=Quaternion.Euler(0,index*37,0);
             return true;
+        }
+
+        // ------------------------------------------------------------ scenery v02: pit garages
+        static int RebuildPitGarages()
+        {
+            var bodies=new List<Transform>();
+            foreach(var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+                if(t&&t.name=="Pit garage")bodies.Add(t);
+            if(bodies.Count==0)return 0;
+            var all=Object.FindObjectsByType<Transform>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            int built=0;
+            foreach(var body in bodies)
+            {
+                var parent=body.parent;var at=body.position;
+                Material walls=MaterialOf(body),door=null,trim=null;
+                foreach(var t in all)
+                {
+                    if(!t||t.parent!=parent||Mathf.Abs(t.position.x-at.x)>.5f)continue;
+                    if(t.name=="Garage door"){door=MaterialOf(t);Object.DestroyImmediate(t.gameObject);}
+                    else if(t.name=="Garage trim"){trim=MaterialOf(t);Object.DestroyImmediate(t.gameObject);}
+                }
+                if(!walls||!door||!trim)continue;
+                var group=new GameObject("Pit garage building - faceted").transform;
+                group.SetParent(parent,false);group.position=new Vector3(at.x,0,at.z);
+                Object.DestroyImmediate(body.gameObject);
+                var kit=new PolygonSceneryKit("Forest pit garage");
+                // Box faces the road on its -z side; the canopy overhangs toward the pit lane.
+                kit.Box(walls,new Vector3(0,3,1),new Vector3(17,6,10));
+                kit.Box(walls,new Vector3(0,6.25f,-.5f),new Vector3(17.6f,.5f,13));
+                kit.Box(trim,new Vector3(0,5.75f,-6.9f),new Vector3(17.6f,.7f,.3f));
+                kit.Box(door,new Vector3(0,2.2f,-4.05f),new Vector3(12,4.4f,.2f));
+                for(int k=0;k<9;k++)kit.Box(door,new Vector3(0,.45f+k*.48f,-4.2f),new Vector3(11.8f,.08f,.1f));
+                foreach(int side in new[]{-1,1})
+                {
+                    kit.Box(trim,new Vector3(side*7.6f,3,-4.15f),new Vector3(.9f,6,.4f));
+                    kit.Box(door,new Vector3(side*4.2f,7.0f,2.5f),new Vector3(2.6f,1.0f,2.2f));
+                }
+                kit.Box(trim,new Vector3(0,7.0f,-5.6f),new Vector3(3.2f,1.2f,.25f));
+                kit.Emit(group);
+                built++;
+            }
+            return built;
+        }
+
+        // ------------------------------------------------------------ scenery v02: grandstand
+        static bool RebuildGrandstand()
+        {
+            Transform stand=null;
+            foreach(var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+                if(t&&t.name=="Grandstand landmark"){stand=t;break;}
+            if(!stand)return false;
+            Material blue=null,white=null,red=null,dark=null;
+            foreach(Transform child in stand)
+            {
+                if(child.name=="Grandstand tier"){if(!blue)blue=MaterialOf(child);else if(!white&&MaterialOf(child)!=blue)white=MaterialOf(child);}
+                else if(child.name=="Grandstand roof")red=MaterialOf(child);
+                else if(child.name=="Roof support")dark=MaterialOf(child);
+            }
+            // Re-run: the rebuilt stand keeps its materials on the baked children.
+            if(!blue||!white||!red||!dark)
+            {
+                var saved=stand.Find("Grandstand materials");
+                if(!saved)return false;
+                var r=saved.GetComponent<MeshRenderer>().sharedMaterials;
+                if(r.Length<4)return false;
+                blue=r[0];white=r[1];red=r[2];dark=r[3];
+            }
+            for(int i=stand.childCount-1;i>=0;i--)Object.DestroyImmediate(stand.GetChild(i).gameObject);
+            var skins=new[]{Flat("PR_Crowd skin light",new Color(.96f,.78f,.62f)),Flat("PR_Crowd skin tan",new Color(.78f,.55f,.38f)),
+                            Flat("PR_Crowd skin deep",new Color(.45f,.30f,.20f))};
+            var hair=Flat("PR_Crowd hair",new Color(.16f,.11f,.08f));
+            var pants=Flat("PR_Crowd denim",new Color(.18f,.24f,.36f));
+            var shirts=new[]{blue,white,red,Flat("PR_Crowd shirt yellow",new Color(1,.78f,.1f)),Flat("PR_Crowd shirt green",new Color(.2f,.6f,.3f))};
+            var kit=new PolygonSceneryKit("Forest grandstand");
+            var facing=Vector3.back;
+            for(int row=0;row<5;row++)
+            {
+                float z=row*1.9f,top=1.0f+row*.65f;
+                kit.Box(row%2==0?blue:white,new Vector3(0,top/2,z),new Vector3(48,top,1.9f));
+                kit.Box(dark,new Vector3(0,top+.225f,z+.45f),new Vector3(47.4f,.45f,.5f));
+                for(int seat=0;seat<32;seat++)
+                {
+                    int id=row*32+seat;if(id%9==0||id%13==0)continue;
+                    float x=-22.5f+seat*1.45f;
+                    kit.Person(new Vector3(x,top,z+.45f),facing,.95f+(id%4)*.035f,shirts[(id*7+row)%shirts.Length],skins[id%3],
+                        id%5==0?red:hair,pants,id%5==0,id%7==0);
+                }
+            }
+            // Back wall, side walls, columns and a cantilever roof with trusses.
+            kit.Box(white,new Vector3(0,3.6f,9.6f),new Vector3(48.6f,7.2f,.4f));
+            foreach(int side in new[]{-1,1})
+            {
+                kit.Prism(white,new[]{new Vector3(side*24.2f,0,-1),new Vector3(side*24.2f,0,9.8f),new Vector3(side*24.2f,7.4f,9.8f),new Vector3(side*24.2f,2.2f,-1)},
+                                new[]{new Vector3(side*24.6f,0,-1),new Vector3(side*24.6f,0,9.8f),new Vector3(side*24.6f,7.4f,9.8f),new Vector3(side*24.6f,2.2f,-1)});
+            }
+            for(int k=0;k<5;k++)
+            {
+                float x=-24+k*12;
+                kit.Box(dark,new Vector3(x,4.0f,10.0f),new Vector3(.5f,8.0f,.5f));
+                kit.Beam(dark,new Vector3(x,8.0f,10.0f),new Vector3(x,7.6f,-2.2f),.3f,.5f);
+                kit.Beam(dark,new Vector3(x,5.6f,10.0f),new Vector3(x,7.5f,2.0f),.18f,.18f);
+            }
+            kit.Box(red,new Vector3(0,8.05f,3.9f),new Vector3(50,.3f,13),Quaternion.Euler(-2,0,0));
+            kit.Box(white,new Vector3(0,7.75f,-2.55f),new Vector3(50.2f,.6f,.2f));
+            kit.Emit(stand);
+            // A hidden marker remembers the four palette materials for re-runs.
+            var marker=new GameObject("Grandstand materials",typeof(MeshRenderer));
+            marker.transform.SetParent(stand,false);
+            var markerRenderer=marker.GetComponent<MeshRenderer>();
+            markerRenderer.sharedMaterials=new[]{blue,white,red,dark};markerRenderer.enabled=false;
+            return true;
+        }
+
+        static Material Flat(string name,Color color)
+        {
+            string path=$"{MeshPath}/{name}.mat";
+            var mat=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(mat)return mat;
+            var shader=Resources.Load<Shader>(PolygonLook.FlatShaderName);
+            if(!shader)shader=Shader.Find("Universal Render Pipeline/Simple Lit");
+            mat=new Material(shader){name=name};mat.SetColor("_BaseColor",color);
+            AssetDatabase.CreateAsset(mat,path);
+            return mat;
         }
 
         static Material MaterialOf(Transform t)

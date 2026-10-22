@@ -57,6 +57,19 @@ New `Runtime/PolygonSceneryMeshes.cs` generates the models (closed shapes wound 
 
 Coastal models update by running menu 7 (it re-applies the look). Not yet touched: grandstands/crowds, Sunbay houses and moored boats, paddock buildings and parked cars, start gantry, bridge, signs, forest pit garages and grandstand.
 
+Headset result for Scenery v01: looked good; forest good. Two bugs: palm fronds missing (C# `Mathf.Sin(Mathf.PI)` is slightly negative, `Pow(negative,.7)` gave NaN vertices, so the whole crown mesh was culled) and faint road-sign text visible through rocks (TextMesh default font material ignores depth).
+
+### Scenery v02 (in testing)
+
+- Fixes: frond width clamps `Max(0, sin)`; menu 7/9 now give all non-cockpit TextMesh signs a shared depth-tested lettering material (`Generated/Look/Sign lettering depth tested.mat`, `PolygonGantryLettering` shader, which now also takes fog) and add `PolygonSignLettering` to the circuit root to rebind the font atlas.
+- `Runtime/PolygonSceneryKit.cs`: multi-material mesh kit (boxes, beams, chamfered octagon frustums, columns, sheets, seated `Person`) that bakes one mesh per material. Details always stand proud of their surface.
+- Seaside grandstands: stepped concrete, bay-coloured benches with backrests, ~580 seated faceted fans (torso, legs, head, hair or cap, some arms raised), front rail, ribbed back wall; sails kept.
+- Sunbay houses: pilasters, cornice, hipped roof with overhang and chimney, shuttered windows with sills/lintels on all faces, door canopy, water-side balcony on brackets with railings, sloped striped cafe awning with valance, two umbrellas. Moored boats use the offshore sailboat meshes (0.9 scale).
+- Paddock: chamfered control tower with coral belt, teal fins, raked wrap-around glazing with mullions, overhanging roof, balcony, mast. Team bays are open-front garages (team back wall, side walls, overhanging roof, fascia, roof units). Parked cars are real copies of the player car: CoastalArt leaves `Paddock parked car slots` outside the merged paddock and `PolygonCarSetup.FillParkedCarSlots` (called by menus 6/7) builds them with `PR_Paddock car livery 1-3`.
+- Start gantry: chamfered tapered pylons with collars and teal fins, banners, visor hoods over the five signals, housing trim. Lenses, lights controller and lettering unchanged.
+- Bridge: gates removed (parapet gaps at ±88 closed); twin teal tied arches (parabola, 16.8 m crown) with cream hangers at the markers and three overhead braces; octagonal piers.
+- Forest (menu 11): pit garages rebuilt (canopy, fascia, slatted roller door, pilasters, roof units, number panel) using their own materials; grandstand rebuilt with benches, ~130 fans, back/side walls, columns, trussed cantilever roof (`Generated/Scenery/PR_Crowd *` materials; hidden `Grandstand materials` marker keeps the palette for re-runs).
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation

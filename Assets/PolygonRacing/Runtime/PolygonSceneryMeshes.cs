@@ -89,8 +89,8 @@ namespace PolygonRacing
                 {
                     float s0=i/(float)spans,s1=(i+1)/(float)spans,sm=(s0+s1)*.5f;
                     var r0=rib(s0);var r1=rib(s1);var rm=rib(sm);
-                    float w0=i==0?.12f:Mathf.Pow(Mathf.Sin(Mathf.PI*s0),.7f);
-                    float w1=Mathf.Pow(Mathf.Sin(Mathf.PI*s1),.7f);
+                    float w0=i==0?.12f:Mathf.Pow(Mathf.Max(0,Mathf.Sin(Mathf.PI*s0)),.7f);
+                    float w1=Mathf.Pow(Mathf.Max(0,Mathf.Sin(Mathf.PI*s1)),.7f);   // Max: sin(PI) < 0 in float -> NaN
                     foreach(float sg in new[]{1f,-1f})
                     {
                         var e0=r0+side*(sg*w0);var e1=r1+side*(sg*w1);

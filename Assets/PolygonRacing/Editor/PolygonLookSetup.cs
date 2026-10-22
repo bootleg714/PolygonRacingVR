@@ -81,6 +81,7 @@ namespace PolygonRacing.Editor
             EnsureFolder();
             var preset=PolygonLook.For(layout);
             ConvertMaterials(preset);
+            ApplySignLettering(player);
             var sun=ConfigureSun(player.transform.parent,preset);
             var sky=SkyMaterial(layout,preset);
             ConfigureEnvironment(player,sun,sky,preset);
@@ -199,6 +200,33 @@ namespace PolygonRacing.Editor
         {
             foreach(char c in Path.GetInvalidFileNameChars())name=name.Replace(c,'_');
             return name;
+        }
+
+        // Roadside sign text used Unity's default font material, which draws through rocks and
+        // cliffs. Point it at the depth-tested lettering shader (shared with the gantry title).
+        static void ApplySignLettering(PolygonDriver player)
+        {
+            var shader=Resources.Load<Shader>("PolygonGantryLettering");
+            if(!shader){Debug.LogWarning("PolygonGantryLettering.shader not found; sign text left unchanged.");return;}
+            string path=$"{LookPath}/Sign lettering depth tested.mat";
+            var mat=AssetDatabase.LoadAssetAtPath<Material>(path);
+            if(!mat){mat=new Material(shader){name="Sign lettering depth tested"};AssetDatabase.CreateAsset(mat,path);}
+            mat.shader=shader;
+            Font font=null;int count=0;
+            foreach(var text in Object.FindObjectsByType<TextMesh>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+            {
+                if(!text||!text.font||text.transform.IsChildOf(player.transform))continue;
+                var renderer=text.GetComponent<MeshRenderer>();if(!renderer)continue;
+                if(renderer.sharedMaterial&&renderer.sharedMaterial.shader==shader&&renderer.sharedMaterial!=mat)continue;   // gantry title
+                font=text.font;renderer.sharedMaterial=mat;EditorUtility.SetDirty(renderer);count++;
+            }
+            if(!font)return;
+            mat.mainTexture=font.material.mainTexture;EditorUtility.SetDirty(mat);
+            var root=player.transform.parent;
+            var binder=root.GetComponent<PolygonSignLettering>();
+            if(!binder)binder=root.gameObject.AddComponent<PolygonSignLettering>();
+            binder.Font=font;binder.DepthMaterial=mat;EditorUtility.SetDirty(binder);
+            Debug.Log($"Depth-tested lettering applied to {count} sign texts.");
         }
 
         // ------------------------------------------------------------ sun, sky, fog
