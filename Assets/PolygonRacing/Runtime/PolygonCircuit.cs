@@ -6,7 +6,8 @@ namespace PolygonRacing
     {
         Forest,
         CoastalExpressway,
-        Downtown
+        Downtown,
+        Riviera
     }
 
     // Shared geometry for scenery, race position and AI routes.
@@ -40,9 +41,15 @@ namespace PolygonRacing
             new Vector3(-252f,0,700f),new Vector3(-288f,0,700f),new Vector3(-320f,0,668f),new Vector3(-320f,0,518f),new Vector3(-320f,0,368f),
             new Vector3(-320f,0,292f),new Vector3(-288f,0,260f),new Vector3(-152f,0,260f),new Vector3(-120f,0,228f),new Vector3(-120f,0,78f),
             new Vector3(-120f,0,32f),new Vector3(-88f,0,0f),new Vector3(-32f,0,0f)};
+        // Riviera harbour circuit: harbour start, uphill drag to the casino square, downhill to a
+        // tight hairpin, seafront tunnel, harbour chicane, pool section, final hairpin. The route
+        // stays in X/Z; rivieraHeights gives the road elevation at each knot (same B-spline basis).
+        static readonly Vector3[] rivieraKnots={new Vector3(-120f,0,0f),new Vector3(-20f,0,0f),new Vector3(80f,0,0f),new Vector3(150f,0,0f),new Vector3(184f,0,8f),new Vector3(200f,0,40f),new Vector3(204f,0,110f),new Vector3(214f,0,180f),new Vector3(222f,0,250f),new Vector3(240f,0,300f),new Vector3(280f,0,335f),new Vector3(330f,0,350f),new Vector3(380f,0,352f),new Vector3(410f,0,340f),new Vector3(440f,0,346f),new Vector3(470f,0,330f),new Vector3(482f,0,295f),new Vector3(478f,0,260f),new Vector3(455f,0,240f),new Vector3(420f,0,236f),new Vector3(392.9f,0,237.9f),new Vector3(377.3f,0,230.2f),new Vector3(371f,0,214f),new Vector3(377.3f,0,197.8f),new Vector3(392.9f,0,190.1f),new Vector3(420f,0,190f),new Vector3(470f,0,186f),new Vector3(520f,0,180f),new Vector3(540f,0,150f),new Vector3(548f,0,90f),new Vector3(550f,0,20f),new Vector3(545f,0,-50f),new Vector3(532f,0,-110f),new Vector3(515f,0,-160f),new Vector3(505f,0,-190f),new Vector3(470f,0,-205f),new Vector3(455f,0,-240f),new Vector3(440f,0,-275f),new Vector3(400f,0,-290f),new Vector3(330f,0,-292f),new Vector3(260f,0,-290f),new Vector3(220f,0,-280f),new Vector3(190f,0,-292f),new Vector3(140f,0,-300f),new Vector3(80f,0,-300f),new Vector3(40f,0,-288f),new Vector3(0f,0,-296f),new Vector3(-60f,0,-300f),new Vector3(-120f,0,-298f),new Vector3(-160f,0,-282f),new Vector3(-172f,0,-250f),new Vector3(-176f,0,-180f),new Vector3(-178f,0,-100f),new Vector3(-176f,0,-50f),new Vector3(-168f,0,-14f)};
+        static readonly float[] rivieraHeights={0f,0f,0f,0.5f,1.5f,3f,9f,17f,26f,33f,37f,39f,40f,40f,39.5f,38f,35f,32f,29f,27f,26f,25.5f,25f,24.5f,24f,22f,20f,17f,14f,11f,9f,7f,5.5f,4f,3f,2.4f,2f,1.6f,1.3f,1.2f,1f,1f,1f,1f,1f,1f,1f,1f,1f,1f,1f,0.8f,0.5f,0.2f,0f};
         static readonly Vector3[] points=new Vector3[Samples+1];
         static readonly float[] distances=new float[Samples+1];
         static Vector3[] knots;
+        static float[] heights;
         static PolygonCircuitLayout activeLayout;
         static bool initialized;
 
@@ -51,8 +58,11 @@ namespace PolygonRacing
         public static float RoadHalfWidth { get; private set; }
         public static float Length { get; private set; }
         public static PolygonCircuitLayout Layout=>activeLayout;
-        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":"Forest Circuit";
-        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":"ForestCircuitV12";
+        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":activeLayout==PolygonCircuitLayout.Riviera?"Riviera Harbour":"Forest Circuit";
+        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":activeLayout==PolygonCircuitLayout.Riviera?"RivieraV01":"ForestCircuitV12";
+        // Distance from the road edge to the barrier line the driver is held inside.
+        public static float BarrierMargin=>activeLayout==PolygonCircuitLayout.Riviera?1.3f:6.5f;
+        public static bool HasElevation=>heights!=null;
 
         static PolygonCircuit()
         {
@@ -63,8 +73,9 @@ namespace PolygonRacing
         {
             if(initialized&&activeLayout==layout)return;
             activeLayout=layout;
-            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:layout==PolygonCircuitLayout.Downtown?downtownKnots:forestKnots;
-            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:layout==PolygonCircuitLayout.Downtown?10f:9f;
+            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:layout==PolygonCircuitLayout.Downtown?downtownKnots:layout==PolygonCircuitLayout.Riviera?rivieraKnots:forestKnots;
+            heights=layout==PolygonCircuitLayout.Riviera?rivieraHeights:null;
+            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:layout==PolygonCircuitLayout.Downtown?10f:layout==PolygonCircuitLayout.Riviera?7.5f:9f;
             for(int i=0;i<=Samples;i++)
             {
                 points[i]=Evaluate(i*Mathf.PI*2/Samples);
@@ -80,6 +91,16 @@ namespace PolygonRacing
             int i=Mathf.FloorToInt(u);float t=u-i,t2=t*t,t3=t2*t;
             var p0=knots[(i+knots.Length-1)%knots.Length];var p1=knots[i%knots.Length];
             var p2=knots[(i+1)%knots.Length];var p3=knots[(i+2)%knots.Length];
+            return (p0*(1-3*t+3*t2-t3)+p1*(3*t3-6*t2+4)+p2*(-3*t3+3*t2+3*t+1)+p3*t3)/6;
+        }
+
+        // Road elevation (metres) at a race distance; zero on flat layouts.
+        public static float Elevation(float meters)
+        {
+            if(heights==null)return 0;
+            float u=Mathf.Repeat(AngleAtDistance(meters)/(Mathf.PI*2),1)*heights.Length;
+            int i=Mathf.FloorToInt(u);float t=u-i,t2=t*t,t3=t2*t;int n=heights.Length;
+            float p0=heights[(i+n-1)%n],p1=heights[i%n],p2=heights[(i+1)%n],p3=heights[(i+2)%n];
             return (p0*(1-3*t+3*t2-t3)+p1*(3*t3-6*t2+4)+p2*(-3*t3+3*t2+3*t+1)+p3*t3)/6;
         }
 

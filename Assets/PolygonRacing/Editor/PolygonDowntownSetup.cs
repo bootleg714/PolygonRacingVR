@@ -93,8 +93,11 @@ namespace PolygonRacing.Editor
             const int laps=16;
             int count=2+laps*2;int k=viewpoint++%count;
             Vector3 position;Quaternion rotation;string label;
-            if(k==0){position=new Vector3(190,700,-450);rotation=Quaternion.Euler(52,0,0);label="Overview";}
-            else if(k==1){position=new Vector3(1100,420,1300);rotation=Quaternion.Euler(28,-140,0);label="Harbor-side overview";}
+            var bounds=new Bounds(PolygonCircuit.AtDistance(0),Vector3.zero);
+            for(int b=1;b<=64;b++)bounds.Encapsulate(PolygonCircuit.AtDistance(PolygonCircuit.Length*b/64));
+            float span=Mathf.Max(bounds.size.x,bounds.size.z);
+            if(k==0){position=bounds.center+new Vector3(0,span*.7f,-span*.85f);rotation=Quaternion.Euler(40,0,0);label="Overview";}
+            else if(k==1){position=bounds.center+new Vector3(span*.8f,span*.35f,span*.8f);rotation=Quaternion.Euler(22,-135,0);label="Opposite overview";}
             else
             {
                 int i=(k-2)/2;bool high=(k-2)%2==1;
@@ -102,12 +105,12 @@ namespace PolygonRacing.Editor
                 var forward=PolygonCircuit.Tangent(PolygonCircuit.AngleAtDistance(d));
                 if(high)
                 {
-                    position=PolygonCircuit.AtDistance(d)-forward*60+Vector3.up*45;
+                    position=PolygonCircuit.AtDistance(d)-forward*60+Vector3.up*(45+PolygonCircuit.Elevation(d));
                     rotation=Quaternion.LookRotation(forward)*Quaternion.Euler(25,0,0);label=$"Helicopter {d:0} m";
                 }
                 else
                 {
-                    position=PolygonCircuit.AtDistance(d)+Vector3.up*1.3f;
+                    position=PolygonCircuit.AtDistance(d)+Vector3.up*(1.3f+PolygonCircuit.Elevation(d));
                     rotation=Quaternion.LookRotation(forward)*Quaternion.Euler(3,0,0);label=$"Driver {d:0} m";
                 }
             }

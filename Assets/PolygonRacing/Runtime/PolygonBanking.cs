@@ -21,6 +21,7 @@ namespace PolygonRacing
         }
         public static float Height(float distance,float lateral)
         {
+            if(PolygonCircuit.HasElevation)return PolygonCircuit.Elevation(distance);
             float slope=Mathf.Tan(Degrees(distance)*Mathf.Deg2Rad);
             if(Mathf.Abs(lateral)<=20)return Mathf.Max(0,20*Mathf.Abs(slope)+lateral*slope);
             float edge=20*Mathf.Abs(slope)+Mathf.Sign(lateral)*20*slope;
@@ -33,7 +34,7 @@ namespace PolygonRacing
         }
         public static Vector3 Normal(float distance,float lateral)
         {
-            if(Mathf.Abs(Degrees(distance))<.00001f)return Vector3.up;
+            if(Mathf.Abs(Degrees(distance))<.00001f&&!PolygonCircuit.HasElevation)return Vector3.up;
             var along=SurfacePoint(distance+.5f,lateral)-SurfacePoint(distance-.5f,lateral);
             var across=SurfacePoint(distance,lateral+.1f)-SurfacePoint(distance,lateral-.1f);
             var normal=Vector3.Cross(along,across).normalized;

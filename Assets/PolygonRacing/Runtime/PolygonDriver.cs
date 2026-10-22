@@ -122,10 +122,10 @@ namespace PolygonRacing
                 NearestPoint(transform.position,out float after);
                 bool afterPit=PolygonMarinaPit.TrySample(transform.position,after,out var pitCenter,out float pitAfter,out _);
                 if(afterPit)after=pitAfter;
-                float barrierLimit=(afterPit?PolygonMarinaPit.HalfWidth:PolygonWorld.RoadHalfWidth)+6.5f;
+                float barrierLimit=(afterPit?PolygonMarinaPit.HalfWidth:PolygonWorld.RoadHalfWidth)+PolygonCircuit.BarrierMargin;
                 if(after>barrierLimit)
                 {
-                    var center=afterPit?pitCenter:PolygonWorld.Point(nearest*Mathf.PI*2/256);
+                    var center=afterPit?pitCenter:PolygonCircuit.AtDistance(PolygonCircuit.ProjectLap(transform.position,out _)*PolygonCircuit.Length);
                     var offset=transform.position-center;offset.y=0;
                     transform.position=center+offset.normalized*(barrierLimit-.1f);speed=Mathf.Min(speed,7);
                     status="BARRIER - A / R to restart";nextStatus=Time.time+2;
@@ -133,7 +133,8 @@ namespace PolygonRacing
                 PolygonBanking.AlignPlayer(transform);
                 if(speed>.1f||lapTime>0)lapTime+=Time.deltaTime;
                 var checkpoint=PolygonWorld.Point((nextCheckpoint%16)*Mathf.PI*2/16);
-                if(Vector3.Distance(transform.position,checkpoint)<22 && Vector3.Dot(transform.forward,PolygonWorld.Tangent(nextCheckpoint*Mathf.PI*2/16))>.2f)
+                var flat=transform.position;flat.y=0;
+                if(Vector3.Distance(flat,checkpoint)<22 && Vector3.Dot(transform.forward,PolygonWorld.Tangent(nextCheckpoint*Mathf.PI*2/16))>.2f)
                 {
                     nextCheckpoint++;
                     if(nextCheckpoint>16){lastLap=lapTime;if(bestTime==0||lapTime<bestTime)bestTime=lapTime;lap++;lapTime=0;nextCheckpoint=1;status="LAP COMPLETE";nextStatus=Time.time+5;}
@@ -150,9 +151,10 @@ namespace PolygonRacing
         static int NearestPoint(Vector3 p,out float distance)
         {
             p.y=0; // Road classification remains lateral, independent of bank height.
-            int best=0;float sq=float.MaxValue;
-            for(int i=0;i<256;i++){float d=(PolygonWorld.Point(i*Mathf.PI*2/256)-p).sqrMagnitude;if(d<sq){sq=d;best=i;}}
-            distance=Mathf.Sqrt(sq);return best;
+            // Exact projection onto the route (the old 256-point lookup overstated the lateral
+            // offset by up to ~5 m between samples, which matters on narrow street circuits).
+            float lap=PolygonCircuit.ProjectLap(p,out distance);
+            return Mathf.RoundToInt(PolygonCircuit.AngleAtDistance(lap*PolygonCircuit.Length)/(Mathf.PI*2)*256)%256;
         }
         void ResetCar()
         {
