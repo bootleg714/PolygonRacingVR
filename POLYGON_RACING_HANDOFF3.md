@@ -43,6 +43,20 @@ Headset result for Car v01: “massive difference”, FPS good, water now clearl
 
 Car v02 (menu 10 again): metal uprights on each wheel pivot (front ones steer, with a steering arm), flat aero wishbones that start just inside the real body surface (`BodyHalfWidth` intersects the nose/engine/sidepod sections) and end on the uprights, plus pushrods. Steering wheel is one continuous swept 6-sided tube around a flat-bottomed oval (40 samples, grip thickness from |cos t| so it is symmetric), carbon centre plate, teal display, 9-segment LED strip (static until the tachometer pass), octagonal buttons, two rotary knobs, shift paddles, yellow top marker. Tilt 15° comes from a new parent `Steering column - tilted`; `PolygonDriver` still rotates the `Steering wheel` transform about its own axis. Two new materials: `PR_Car LED green`, `PR_Car display`.
 
+Headset result for Car v02: everything looked good. Next agreed step: scenery models.
+
+### Scenery models — Scenery v01 (in testing)
+
+New `Runtime/PolygonSceneryMeshes.cs` generates the models (closed shapes wound outward from a local centre; fronds/sails emitted with both windings, so ordinary back-face culling works):
+
+- Palms: three variants (height/lean) with ringed, curving 8-segment trunks, 12 serrated drooping fronds split into two meshes so alternate fronds use the two greens, and a coconut cluster (`CE Art Coconut brown`). Same footprint as before; variant picked from position.
+- Rocks: noisy squashed icosphere boulders (3 seeds) for beach outcrops and the lighthouse islet; stepped four-layer sandstone mesas (3 seeds) for headland cliffs, inland bluffs and canyon walls; gentler boulders for the four islands. Old object names are kept (marina and banking code match them by name).
+- Offshore boats: lofted hull with transom, cabin, mast and boom, mainsail and jib (scaled 1.3).
+- Lighthouse: tapered octagonal striped tiers, flared gallery with 16 railing posts and a rail, glazed lantern, coral dome.
+- Forest (menu **11 - Refresh Forest Scenery Models**, `Editor/PolygonSceneryModelsSetup.cs`): the 159 pines become tiered faceted pines (three variants, unit-height meshes scaled by the original height, variant from position) and the 15 pyramid hills become rounded faceted mountains, reusing the existing materials. Backs up the scene; safe to re-run.
+
+Coastal models update by running menu 7 (it re-applies the look). Not yet touched: grandstands/crowds, Sunbay houses and moored boats, paddock buildings and parked cars, start gantry, bridge, signs, forest pit garages and grandstand.
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation

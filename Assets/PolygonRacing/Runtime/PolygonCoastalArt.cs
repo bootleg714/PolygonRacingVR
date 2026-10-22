@@ -8,7 +8,10 @@ namespace PolygonRacing
     public static class PolygonCoastalArt
     {
         static Material sand,sea,shallow,foam,grass,coral,ochre,cream,teal,pink,bark,leaf,lime,navy;
-        static Mesh trunkMesh,frondMesh,rockMesh;
+        // Scenery pass v01 meshes (PolygonSceneryMeshes).
+        static Mesh[] palmTrunks,palmCrownsA,palmCrownsB,palmNuts,boulders,mesas,islands;
+        static Mesh boatHull,boatCabin,boatRigging,boatSails;
+        static Material nut;
         static readonly List<Vector3> vertices=new List<Vector3>();
         static readonly List<int> indices=new List<int>();
         static readonly string[] replaced={"Coastal land west","Coastal land east","Coastal land north of bridge","Coastal land south of bridge",
@@ -37,7 +40,19 @@ namespace PolygonRacing
             leaf=Mat("Emerald palm",new Color(.075f,.48f,.30f));
             lime=Mat("Sunlit palm",new Color(.32f,.68f,.31f));
             navy=Mat("Deep blue trim",new Color(.075f,.18f,.27f));
-            trunkMesh=CreateTrunk();frondMesh=CreateFronds();rockMesh=CreateRock();
+            nut=Mat("Coconut brown",new Color(.36f,.22f,.12f));
+            int palmCount=PolygonSceneryMeshes.PalmVariantCount;
+            palmTrunks=new Mesh[palmCount];palmCrownsA=new Mesh[palmCount];palmCrownsB=new Mesh[palmCount];palmNuts=new Mesh[palmCount];
+            for(int v=0;v<palmCount;v++)
+            {
+                palmTrunks[v]=PolygonSceneryMeshes.PalmTrunk(v);palmCrownsA[v]=PolygonSceneryMeshes.PalmCrown(v,0);
+                palmCrownsB[v]=PolygonSceneryMeshes.PalmCrown(v,1);palmNuts[v]=PolygonSceneryMeshes.PalmCoconuts(v);
+            }
+            boulders=new[]{PolygonSceneryMeshes.Boulder(3),PolygonSceneryMeshes.Boulder(7),PolygonSceneryMeshes.Boulder(11)};
+            mesas=new[]{PolygonSceneryMeshes.Mesa(5),PolygonSceneryMeshes.Mesa(9),PolygonSceneryMeshes.Mesa(13)};
+            islands=new[]{PolygonSceneryMeshes.Boulder(21,.22f,.75f,"Faceted island"),PolygonSceneryMeshes.Boulder(29,.22f,.75f,"Faceted island")};
+            boatHull=PolygonSceneryMeshes.BoatHull();boatCabin=PolygonSceneryMeshes.BoatCabin();
+            boatRigging=PolygonSceneryMeshes.BoatRigging();boatSails=PolygonSceneryMeshes.BoatSails();
             var root=new GameObject("Coastal art - palms beach cliffs and festival").transform;root.SetParent(world,false);
             BuildLandAndSea(root);BuildPalms(root);BuildCliffs(root);BuildCliffPassage(root);BuildIslands(root);BuildFestival(root);BuildCoastGantry(root);BuildBridge(root);BuildLighthouse(root);BuildBoats(root);BuildBridgeWaterfront(root);BuildCornerGuidance(root);PolygonMarinaPit.BuildScenery(world);SeparateSignText(world);
             foreach(var renderer in world.GetComponentsInChildren<MeshRenderer>())
@@ -243,62 +258,17 @@ namespace PolygonRacing
             }
         }
 
-        static Mesh CreateTrunk()
-        {
-            for(int ring=0;ring<5;ring++)for(int face=0;face<7;face++)
-            {
-                float a=face*Mathf.PI*2/7,b=(face+1)*Mathf.PI*2/7;
-                float y=ring*2.6f,y2=(ring+1)*2.6f;
-                float lean=ring*ring*.075f,lean2=(ring+1)*(ring+1)*.075f;
-                float r=.57f-ring*.065f,r2=.57f-(ring+1)*.065f;
-                Quad(new Vector3(lean+Mathf.Cos(a)*r,y,Mathf.Sin(a)*r),new Vector3(lean2+Mathf.Cos(a)*r2,y2,Mathf.Sin(a)*r2),new Vector3(lean2+Mathf.Cos(b)*r2,y2,Mathf.Sin(b)*r2),new Vector3(lean+Mathf.Cos(b)*r,y,Mathf.Sin(b)*r));
-            }
-            return Finish("Curved faceted palm trunk");
-        }
-        static Mesh CreateFronds()
-        {
-            for(int i=0;i<10;i++)
-            {
-                float a=i*Mathf.PI*2/10;var d=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));var side=new Vector3(-d.z,0,d.x);
-                var root=new Vector3(1.875f,13,0);
-                var previous=root;float previousWidth=.12f;
-                for(int span=1;span<=3;span++)
-                {
-                    float distance=span*1.95f;float width=span==1?1.05f:span==2 ? .75f : 0;
-                    var next=root+d*distance+Vector3.up*(span==1?1.25f:span==2 ? .45f : -1.5f);
-                    var ridgeA=previous+Vector3.up*.23f;var ridgeB=next+Vector3.up*.23f;
-                    Quad(ridgeA,ridgeB,next-side*width,previous-side*previousWidth);
-                    Quad(previous+side*previousWidth,next+side*width,ridgeB,ridgeA);
-                    // Visible undersides without double-sided material or cancelling normals.
-                    Quad(previous-side*previousWidth,next-side*width,next+side*width,previous+side*previousWidth);
-                    previous=next;previousWidth=width;
-                }
-            }
-            return Finish("Broad sculpted palm fronds");
-        }
-        static Mesh CreateRock()
-        {
-            const int n=9;
-            for(int i=0;i<n;i++)
-            {
-                float a=i*Mathf.PI*2/n,b=(i+1)*Mathf.PI*2/n;
-                var p0=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));var p1=new Vector3(Mathf.Cos(b),0,Mathf.Sin(b));
-                var q0=new Vector3(Mathf.Cos(a)*.92f,.44f+Mathf.Sin(i*7.1f)*.07f,Mathf.Sin(a)*.92f);
-                var q1=new Vector3(Mathf.Cos(b)*.92f,.44f+Mathf.Sin((i+1)*7.1f)*.07f,Mathf.Sin(b)*.92f);
-                var r0=new Vector3(Mathf.Cos(a)*.46f+.13f,.83f,Mathf.Sin(a)*.46f);
-                var r1=new Vector3(Mathf.Cos(b)*.46f+.13f,.83f,Mathf.Sin(b)*.46f);
-                Quad(p0,q0,q1,p1);Quad(q0,r0,r1,q1);Tri(r0,new Vector3(.1f,1,0),r1);
-            }
-            return Finish("Angular sandstone formation");
-        }
         static bool Clear(Vector3 p,float radius)
         {PolygonCircuit.ProjectLap(p,out float offset);return offset>PolygonCircuit.RoadHalfWidth+radius+8;}
         static void Palm(Transform parent,Vector3 p,float scale,float yaw,int tint)
         {
             if(!Clear(p,scale*6))return;
             var root=Group(parent,"Sculpted palm cluster tree",p);root.localRotation=Quaternion.Euler(0,yaw,0);root.localScale=Vector3.one*scale;
-            MeshObject(root,"Curved honey trunk",trunkMesh,Vector3.zero,Vector3.one,bark);
-            MeshObject(root,"Broad emerald crown",frondMesh,Vector3.zero,Vector3.one,tint%3==0?lime:leaf);
+            int v=Mathf.Abs(Mathf.RoundToInt(p.x*7+p.z*13))%PolygonSceneryMeshes.PalmVariantCount;
+            MeshObject(root,"Curved honey trunk",palmTrunks[v],Vector3.zero,Vector3.one,bark);
+            MeshObject(root,"Broad emerald crown",palmCrownsA[v],Vector3.zero,Vector3.one,tint%3==0?lime:leaf);
+            MeshObject(root,"Sunlit crown fronds",palmCrownsB[v],Vector3.zero,Vector3.one,tint%3==0?leaf:lime);
+            MeshObject(root,"Coconuts",palmNuts[v],Vector3.zero,Vector3.one,nut);
         }
         static void BuildPalms(Transform root)
         {
@@ -323,7 +293,14 @@ namespace PolygonRacing
             }
         }
         static void Rock(Transform root,string name,Vector3 p,Vector3 scale,Material mat,float yaw=0)
-        {if(Clear(p,Mathf.Max(scale.x,scale.z)))MeshObject(root,name,rockMesh,p,scale,mat,yaw);}
+        {
+            if(!Clear(p,Mathf.Max(scale.x,scale.z)))return;
+            // Big formations become stepped sandstone cliffs; small ones become boulders.
+            bool small=name.Contains("outcrop")||name.Contains("islet");
+            var set=small?boulders:mesas;
+            int v=Mathf.Abs(Mathf.RoundToInt(p.x*3+p.z*5+yaw))%set.Length;
+            MeshObject(root,name,set[v],p,scale,mat,yaw);
+        }
         static void BuildCliffs(Transform root)
         {
             for(int i=0;i<16;i++)
@@ -432,10 +409,10 @@ namespace PolygonRacing
         static void BuildIslands(Transform root)
         {
             // Distances are within the coastal camera range; skyline mass is deliberate.
-            MeshObject(root,"Emerald island near bridge",rockMesh,new Vector3(140,-1,910),new Vector3(90,48,45),teal,18);
-            MeshObject(root,"Emerald island east",rockMesh,new Vector3(790,-1,980),new Vector3(135,82,60),teal,-22);
-            MeshObject(root,"Warm island ridge",rockMesh,new Vector3(1120,-1,890),new Vector3(100,60,46),coral,30);
-            MeshObject(root,"Island west peak",rockMesh,new Vector3(-360,-1,940),new Vector3(85,68,50),teal,10);
+            MeshObject(root,"Emerald island near bridge",islands[0],new Vector3(140,-1,910),new Vector3(90,48,45),teal,18);
+            MeshObject(root,"Emerald island east",islands[1],new Vector3(790,-1,980),new Vector3(135,82,60),teal,-22);
+            MeshObject(root,"Warm island ridge",islands[0],new Vector3(1120,-1,890),new Vector3(100,60,46),coral,30);
+            MeshObject(root,"Island west peak",islands[1],new Vector3(-360,-1,940),new Vector3(85,68,50),teal,10);
         }
         static Transform Frame(Transform root,string name,float distance,float sideOffset)
         {
@@ -781,11 +758,10 @@ namespace PolygonRacing
         {
             var p=new Vector3(615,-.8f,746);Rock(root,"Lighthouse rocky islet",p,new Vector3(24,7,17),ochre,12);
             var t=Group(root,"Coral Coast lighthouse landmark",p+Vector3.up*5.8f);
-            for(int tier=0;tier<7;tier++)
-                Box(t,"Striped lighthouse tier",new Vector3(0,tier*3+1.5f,0),new Vector3(5.4f-tier*.35f,3,5.4f-tier*.35f),tier%2==0?cream:pink);
-            Box(t,"Lighthouse observation deck",new Vector3(0,21.5f,0),new Vector3(7,.65f,7),teal);
-            Box(t,"Lantern glazing",new Vector3(0,23.5f,0),new Vector3(4,3.2f,4),navy);
-            Box(t,"Lighthouse cap",new Vector3(0,25.4f,0),new Vector3(7,.75f,7),pink);
+            MeshObject(t,"Striped lighthouse tiers cream",PolygonSceneryMeshes.LighthouseTiers(0),Vector3.zero,Vector3.one,cream);
+            MeshObject(t,"Striped lighthouse tiers coral",PolygonSceneryMeshes.LighthouseTiers(1),Vector3.zero,Vector3.one,pink);
+            MeshObject(t,"Lighthouse observation gallery",PolygonSceneryMeshes.LighthouseGallery(),Vector3.zero,Vector3.one,teal);
+            MeshObject(t,"Lantern glazing",PolygonSceneryMeshes.LighthouseLantern(),Vector3.zero,Vector3.one,navy);
         }
         // Physical signs and paint follow the same route as the race. No HUD overlays.
         static void BuildCornerGuidance(Transform root)
@@ -902,11 +878,11 @@ namespace PolygonRacing
             for(int i=0;i<5;i++)
             {
                 var boat=Group(root,"Little offshore sailboat",new Vector3(-100+i*245,-.8f,810+i%2*43));boat.localRotation=Quaternion.Euler(0,i*37,0);
-                MeshObject(boat,"Angular boat hull",rockMesh,Vector3.zero,new Vector3(2,.85f,6),cream);
-                Box(boat,"Mast",new Vector3(0,5,0),new Vector3(.15f,10,.15f),navy);
-                Tri(new Vector3(.1f,1.4f,0),new Vector3(.1f,10,0),new Vector3(.1f,1.4f,5));
-                Tri(new Vector3(.1f,1.4f,5),new Vector3(.1f,10,0),new Vector3(.1f,1.4f,0));
-                MeshObject(boat,"Triangular sail",Finish("Sail mesh"),Vector3.zero,Vector3.one,i%2==0?pink:cream);
+                boat.localScale=Vector3.one*1.3f;
+                MeshObject(boat,"Angular boat hull",boatHull,Vector3.zero,Vector3.one,cream);
+                MeshObject(boat,"Boat cabin",boatCabin,Vector3.zero,Vector3.one,teal);
+                MeshObject(boat,"Mast",boatRigging,Vector3.zero,Vector3.one,navy);
+                MeshObject(boat,"Triangular sail",boatSails,Vector3.zero,Vector3.one,i%2==0?pink:cream);
             }
         }
     }
