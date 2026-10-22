@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/PolygonRacing/Scenes/CoastalExpressway.unity
     guid: 203c658ce186cd640ba4015da61b041e
+  - enabled: 1
+    path: Assets/PolygonRacing/Scenes/DowntownCircuit.unity
+    guid: 8fb5b0595a7e1954cb1559d5943518cb
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 30da35604ebaf1a4db92ecfae8870ff2, type: 2}
