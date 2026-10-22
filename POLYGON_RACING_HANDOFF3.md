@@ -425,6 +425,21 @@ If rivals still cannot recover, inspect real gap, target speed, traffic cap and 
 - New downtown circuit inspired by the saved urban references, with its own identity.
 - Physical contact, advanced racing lines, more sophisticated opponent behavior only if wanted; not prerequisites for this current working arcade baseline.
 
+### Track and polish to-do list (agreed 22 Oct)
+
+New circuits, each an original take on an iconic track (same approach as Riviera and Sakura: own layout, own buildings, real-world feel):
+
+- **Spa-style:** forest hills with the steep uphill sweep at the bottom of the valley, long fast straight, a slow hairpin after the start, rain-cloud mood.
+- **Monza-style:** fast parkland straights through tall trees, chicanes, a long sweeping final corner, the old banked oval visible beside the track.
+- **Desert night race:** floodlit circuit in the desert, glowing grandstands and hotel, dark sky with stars (needs a night look preset and emissive lighting).
+
+Polish across all tracks:
+
+- Time-of-day variants (sunset / dusk versions of existing circuits, chosen in the circuit menu).
+- Rivals braking for hairpins (Riviera, Sakura and the Nürburgring-style track have corners tighter than top-speed turning).
+- Best lap saved per circuit and shown in the menu; podium/results screen.
+- Shared review of crowd density, tree counts and draw calls if any circuit dips on Quest.
+
 ### Deferred browser multiplayer port
 
 A three.js port remains a future project. Thomas's other three.js game already runs from GitHub with Create Room → generated room code → friends join. Inspect and reuse that working approach where suitable before choosing networking technology.
