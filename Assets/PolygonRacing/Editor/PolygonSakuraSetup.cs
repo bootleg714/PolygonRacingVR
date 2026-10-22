@@ -82,6 +82,34 @@ namespace PolygonRacing.Editor
             }
         }
 
+        // Debug helper: steps the Scene view through close views of the Sakura landmarks.
+        static int landmark;
+        [MenuItem("Polygon Racing/Debug - Sakura Landmark Views")]
+        static void NextLandmark()
+        {
+            var view=SceneView.lastActiveSceneView;
+            if(!view){Debug.LogWarning("Open a Scene view first.");return;}
+            PolygonCircuit.SetLayout(PolygonCircuitLayout.Sakura);
+            float lower=PolygonCircuit.ProjectLap(new Vector3(180,3,266),out _)*PolygonCircuit.Length;
+            var cross=PolygonCircuit.AtDistance(lower);var t=PolygonCircuit.Tangent(PolygonCircuit.AngleAtDistance(lower));
+            var side=Vector3.Cross(Vector3.up,t);
+            var views=new (string label,Vector3 eye,Vector3 target)[]{
+                ("Under the bridge (lower road)",cross-t*55+Vector3.up*(PolygonCircuit.Elevation(lower-55)+1.3f),cross+Vector3.up*(PolygonCircuit.Elevation(lower)+3)),
+                ("Bridge from the field",cross+side*70+t*25+Vector3.up*16,cross+Vector3.up*8),
+                ("Bridge from the field, other side",cross-side*70-t*25+Vector3.up*16,cross+Vector3.up*8),
+                ("Ferris wheel from the main grandstand",new Vector3(600,26,48),new Vector3(565,38,-52)),
+                ("Amusement park",new Vector3(520,55,40),new Vector3(610,0,-110)),
+                ("Lake and water gate",new Vector3(-335,20,250),new Vector3(-408,12,346)),
+                ("Pagoda hill",new Vector3(-10,45,560),new Vector3(-40,40,660)),
+                ("Hairpin gate",new Vector3(-470,12,92),new Vector3(-585,16,120)),
+                ("Esses from above",new Vector3(860,70,200),new Vector3(780,10,330))};
+            var v=views[landmark++%views.Length];
+            var temp=new GameObject("Viewpoint (temporary)");temp.hideFlags=HideFlags.HideAndDontSave;
+            temp.transform.SetPositionAndRotation(v.eye,Quaternion.LookRotation(v.target-v.eye));
+            view.AlignViewToObject(temp.transform);Object.DestroyImmediate(temp);view.Repaint();
+            Debug.Log("Sakura landmark view: "+v.label);
+        }
+
         static void Report(Transform scenery,double seconds,bool created)
         {
             long triangles=0;int renderers=0;

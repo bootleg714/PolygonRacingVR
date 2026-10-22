@@ -24,12 +24,14 @@ namespace PolygonRacing
         static readonly Vector2 LakeCentre=new Vector2(-418,330);
         const float LakeRx=62,LakeRz=56,LakeLevel=7.2f;
         static readonly Vector2 FerrisSite=new Vector2(565,-52);
+        static readonly Vector2 ParkCentre=new Vector2(585,-95),ParkHalf=new Vector2(150,72);
+        static bool InPark(float x,float z)=>Mathf.Abs(x-ParkCentre.x)<ParkHalf.x&&Mathf.Abs(z-ParkCentre.y)<ParkHalf.y;
         static readonly Vector2 PagodaSite=new Vector2(-40,660);
 
         static Material asphalt,line,kerbRed,gravel,runoff,grass,grassDark,meadow,rock,dirt,concrete,wallStone,armco,tyreBlack,tyreRed,
             fence,cream,white,charcoal,vermilion,gold,teal,navy,coral,ochre,sakura,sakuraPale,sakuraDeep,pine,pineDark,bark,lakeWater,
             paddy,paddyFlooded,glassDark,steel,lampGlow,skinLight,skinTan,skinDeep,hair,mountain,mountainSnow,roofGrey,plaster,timber,
-            lilac,lime,sky;
+            lilac,lime,sky,plaza,plazaWarm;
         static Material[] teamColors,shirts,skins,gondolaColors;
         static readonly List<Rect> reserved=new List<Rect>();
         static Transform propsRoot;
@@ -106,6 +108,8 @@ namespace PolygonRacing
             lilac=Mat("Lilac",new Color(.62f,.48f,.82f));
             lime=Mat("Lime",new Color(.60f,.82f,.26f));
             sky=Mat("Sky blue",new Color(.36f,.66f,.92f));
+            plaza=Mat("Park paving",new Color(.82f,.78f,.70f));
+            plazaWarm=Mat("Park paving warm",new Color(.86f,.74f,.62f));
             teamColors=new[]{coral,teal,ochre,navy,lilac,lime};
             shirts=new[]{coral,teal,ochre,navy,white,lilac,lime,sakura,sky};
             skins=new[]{skinLight,skinTan,skinDeep};
@@ -310,6 +314,7 @@ namespace PolygonRacing
             else if(n.y<.62f)m=rock;
             else if(centre.y>70)m=n.y<.8f?rock:mountain;
             else if(!far&&LakeDistance(centre.x,centre.z)<1.02f)m=dirt;
+            else if(!far&&InPark(centre.x,centre.z))m=Hash(Mathf.Floor(centre.x/20),Mathf.Floor(centre.z/20),9)<.5f?plaza:plazaWarm;
             else
             {
                 float o=far?999:Offset(centre);
@@ -476,12 +481,12 @@ namespace PolygonRacing
         // ------------------------------------------------------------ levelled sites
         // Ground inside these rectangles is cut down to a fixed height (soft 20 m edge), so pits,
         // stands and the amusement park never have terrain poking through their floors.
-        struct Site{public Vector3 Centre,AxisX,AxisZ;public float HalfX,HalfZ,Height;}
+        struct Site{public Vector3 Centre,AxisX,AxisZ;public float HalfX,HalfZ,Height,Edge;}
         static readonly List<Site> sites=new List<Site>();
-        static void AddSite(Vector3 centre,Vector3 forward,float halfX,float halfZ,float height)
+        static void AddSite(Vector3 centre,Vector3 forward,float halfX,float halfZ,float height,float edge=20)
         {
             forward.y=0;forward.Normalize();
-            sites.Add(new Site{Centre=new Vector3(centre.x,0,centre.z),AxisZ=forward,AxisX=Vector3.Cross(Vector3.up,forward),HalfX=halfX,HalfZ=halfZ,Height=height});
+            sites.Add(new Site{Centre=new Vector3(centre.x,0,centre.z),AxisZ=forward,AxisX=Vector3.Cross(Vector3.up,forward),HalfX=halfX,HalfZ=halfZ,Height=height,Edge=edge});
         }
         static float ApplySites(float x,float z,float h)
         {
@@ -489,8 +494,8 @@ namespace PolygonRacing
             {
                 var d=new Vector3(x,0,z)-s.Centre;
                 float ox=Mathf.Max(0,Mathf.Abs(Vector3.Dot(d,s.AxisX))-s.HalfX),oz=Mathf.Max(0,Mathf.Abs(Vector3.Dot(d,s.AxisZ))-s.HalfZ);
-                float outside=Mathf.Sqrt(ox*ox+oz*oz);if(outside>20)continue;
-                h=Mathf.Min(h,Mathf.Lerp(s.Height,h,Mathf.SmoothStep(0,1,outside/20)));
+                float outside=Mathf.Sqrt(ox*ox+oz*oz);if(outside>s.Edge)continue;
+                h=Mathf.Min(h,Mathf.Lerp(s.Height,h,Mathf.SmoothStep(0,1,outside/s.Edge)));
             }
             return h;
         }
@@ -665,7 +670,7 @@ namespace PolygonRacing
             AddSite(P(mid)+S(mid)*26,T(mid),12,(PitEnd-PitStart)*.5f+10,E(PitEnd)-.5f);
             AddSite(P(PitEnd+22)-S(PitEnd+22)*40,T(PitEnd+22),14,14,E(PitEnd+22)-.5f);
             // Amusement park.
-            AddSite(new Vector3(585,0,-95),Vector3.forward,150,70,1.6f);
+            AddSite(new Vector3(ParkCentre.x,0,ParkCentre.y),Vector3.forward,ParkHalf.x,ParkHalf.y,1.6f,55);
             // A gentle hollow round the lake.
             AddSite(new Vector3(LakeCentre.x,0,LakeCentre.y),Vector3.forward,LakeRx*1.45f,LakeRz*1.45f,LakeLevel+1.4f);
         }
@@ -754,13 +759,13 @@ namespace PolygonRacing
             for(int i=0;i<pts;i++)
             {
                 var a=path[i];var b=path[(i+1)%pts];var side=Vector3.Cross(Vector3.up,(b-a).normalized)*.8f;
-                ck.Beam(teal,a+side,b+side,.22f,.22f);ck.Beam(teal,a-side,b-side,.22f,.22f);
-                ck.Beam(coral,a+Vector3.down*.6f,b+Vector3.down*.6f,.35f,.35f);
+                ck.Beam(teal,a+side,b+side,.35f,.35f);ck.Beam(teal,a-side,b-side,.35f,.35f);
+                ck.Beam(coral,a+Vector3.down*.7f,b+Vector3.down*.7f,.7f,.7f);
                 if(i%3==0)
                 {
                     float g=TerrainHeight(a.x,a.z);
-                    ck.Beam(white,new Vector3(a.x,g-.5f,a.z)+side*1.6f,a+Vector3.down*.6f+side*.4f,.3f,.3f);
-                    ck.Beam(white,new Vector3(a.x,g-.5f,a.z)-side*1.6f,a+Vector3.down*.6f-side*.4f,.3f,.3f);
+                    ck.Beam(white,new Vector3(a.x,g-.5f,a.z)+side*1.8f,a+Vector3.down*.8f+side*.4f,.45f,.45f);
+                    ck.Beam(white,new Vector3(a.x,g-.5f,a.z)-side*1.8f,a+Vector3.down*.8f-side*.4f,.45f,.45f);
                 }
             }
             // Train of cars parked on the lift hill.
@@ -796,6 +801,26 @@ namespace PolygonRacing
                     sk.SheetQuad(st%2==0?awn:white,p+new Vector3(-3+st*1.5f,3.4f,-2.2f),p+new Vector3(-1.5f+st*1.5f,3.4f,-2.2f),p+new Vector3(-1.5f+st*1.5f,2.6f,-3.4f),p+new Vector3(-3+st*1.5f,2.6f,-3.4f));
                 ReserveWorld(p.x-4,p.x+4,p.z-4,p.z+3);
             }
+            // Striped marquee tents and planters round the plaza; no forest inside the park.
+            for(int k=0;k<9;k++)
+            {
+                var p=new Vector3(460+k*30+Hash(k,7)*8,0,-150+Hash(k,8)*20);if(k%3==1)p.z=-75+Hash(k,9)*10;
+                p.y=TerrainHeight(p.x,p.z);var tk=chunks.At(p);if(Reserved(new Vector2(p.x,p.z),3))continue;
+                var c=gondolaColors[(k+2)%gondolaColors.Length];
+                tk.Column(white,p,4.6f,4.6f,2.6f,8);
+                for(int i=0;i<8;i++)
+                {
+                    float a0=i*Mathf.PI*2/8,a1=(i+1)*Mathf.PI*2/8;
+                    tk.Tri(i%2==0?c:white,p+new Vector3(Mathf.Cos(a0)*5.4f,2.6f,Mathf.Sin(a0)*5.4f),p+new Vector3(Mathf.Cos(a1)*5.4f,2.6f,Mathf.Sin(a1)*5.4f),p+Vector3.up*6.2f,p+Vector3.up*3);
+                }
+                tk.Column(gold,p+Vector3.up*6.1f,.15f,.05f,1.4f,6);
+            }
+            for(int k=0;k<14;k++)
+            {
+                var p=new Vector3(455+k*20,0,-28);p.y=TerrainHeight(p.x,p.z);
+                CherryTree(chunks.At(p),p,.85f);
+            }
+            ReserveWorld(ParkCentre.x-ParkHalf.x,ParkCentre.x+ParkHalf.x,ParkCentre.y-ParkHalf.y,ParkCentre.y+ParkHalf.y);
         }
 
         // ------------------------------------------------------------ lake, gates, pagoda
