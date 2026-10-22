@@ -21,7 +21,7 @@ namespace PolygonRacing
         }
         public static float Height(float distance,float lateral)
         {
-            if(PolygonCircuit.HasElevation)return PolygonCircuit.Elevation(distance);
+            if(PolygonCircuit.HasElevation)return PolygonCircuit.Elevation(distance)+lateral*PolygonCircuit.BankSlope(distance);
             float slope=Mathf.Tan(Degrees(distance)*Mathf.Deg2Rad);
             if(Mathf.Abs(lateral)<=20)return Mathf.Max(0,20*Mathf.Abs(slope)+lateral*slope);
             float edge=20*Mathf.Abs(slope)+Mathf.Sign(lateral)*20*slope;

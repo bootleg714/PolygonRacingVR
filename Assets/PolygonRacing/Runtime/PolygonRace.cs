@@ -81,7 +81,7 @@ namespace PolygonRacing
         void CreateBoard()
         {
             board=new GameObject("Countdown and results - cockpit panel");board.transform.SetParent(player.transform,false);board.transform.localPosition=new Vector3(0,1.32f,1.6f);
-            var background=GameObject.CreatePrimitive(PrimitiveType.Cube);background.name="Panel background";background.transform.SetParent(board.transform,false);background.transform.localScale=new Vector3(1.5f,.7f,.018f);
+            var background=GameObject.CreatePrimitive(PrimitiveType.Cube);background.name="Panel background";background.transform.SetParent(board.transform,false);background.transform.localScale=new Vector3(1.5f,.84f,.018f);
             var collider=background.GetComponent<Collider>();collider.enabled=false;Destroy(collider);
             var shader=PolygonLook.LitShader();
             boardMaterial=new Material(shader){name="Race panel charcoal",color=new Color(.025f,.045f,.065f)};
@@ -100,7 +100,7 @@ namespace PolygonRacing
             string restart=mode==Mode.TimeTrial?"RESTART TIME TRIAL":"RESTART RACE";
             if(selectingCircuit)
             {
-                SetBoard("SELECT CIRCUIT\n"+(selection==0?"> ":"  ")+"FOREST CIRCUIT\n"+(selection==1?"> ":"  ")+"COASTAL EXPRESSWAY\n"+(selection==2?"> ":"  ")+"DOWNTOWN STREETS\n"+(selection==3?"> ":"  ")+"RIVIERA HARBOUR\n"+(selection==4?"> ":"  ")+"SAKURA HILLS\n"+(selection==5?"> ":"  ")+"BACK\nSTICK: MOVE  A: SELECT  Y: MENU",true);
+                SetBoard("SELECT CIRCUIT\n"+(selection==0?"> ":"  ")+"FOREST CIRCUIT\n"+(selection==1?"> ":"  ")+"COASTAL EXPRESSWAY\n"+(selection==2?"> ":"  ")+"DOWNTOWN STREETS\n"+(selection==3?"> ":"  ")+"RIVIERA HARBOUR\n"+(selection==4?"> ":"  ")+"SAKURA HILLS\n"+(selection==5?"> ":"  ")+"NORDWALD RING\n"+(selection==6?"> ":"  ")+"BACK\nSTICK: MOVE  A: SELECT  Y: MENU",true);
                 return;
             }
             SetBoard("POLYGON RACING VR\n"+(selection==0?"> ":"  ")+"START RACE\n"+(selection==1?"> ":"  ")+"TIME TRIAL\n"+(selection==2?"> ":"  ")+restart+"\nSTICK UP/DOWN   A: SELECT\nY / M: MENU",true);
@@ -135,15 +135,15 @@ namespace PolygonRacing
                 float y=0;if(left.TryGetFeatureValue(CommonUsages.primary2DAxis,out var stick))y=stick.y;
                 if(keyboard!=null){if(keyboard.upArrowKey.isPressed)y=1;if(keyboard.downArrowKey.isPressed)y=-1;}
                 bool held=Mathf.Abs(y)>.6f;
-                int options=selectingCircuit?6:3;
+                int options=selectingCircuit?7:3;
                 if(held&&!navLatched){selection=(selection+(y>0?options-1:1))%options;DrawMenu();}
                 navLatched=held;
                 if(confirmPressed)
                 {
                     if(selectingCircuit)
                     {
-                        if(selection==5){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
-                        else LoadCircuit(selection==0?PolygonCircuitLayout.Forest:selection==1?PolygonCircuitLayout.CoastalExpressway:selection==2?PolygonCircuitLayout.Downtown:selection==3?PolygonCircuitLayout.Riviera:PolygonCircuitLayout.Sakura);
+                        if(selection==6){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                        else LoadCircuit(selection==0?PolygonCircuitLayout.Forest:selection==1?PolygonCircuitLayout.CoastalExpressway:selection==2?PolygonCircuitLayout.Downtown:selection==3?PolygonCircuitLayout.Riviera:selection==4?PolygonCircuitLayout.Sakura:PolygonCircuitLayout.Nordwald);
                     }
                     else if(selection<2)
                     {
@@ -258,7 +258,7 @@ namespace PolygonRacing
         }
         void LoadCircuit(PolygonCircuitLayout layout)
         {
-            string sceneName=layout==PolygonCircuitLayout.Forest?"ForestCircuit":layout==PolygonCircuitLayout.Downtown?"DowntownCircuit":layout==PolygonCircuitLayout.Riviera?"RivieraHarbour":layout==PolygonCircuitLayout.Sakura?"SakuraHills":"CoastalExpressway";
+            string sceneName=layout==PolygonCircuitLayout.Forest?"ForestCircuit":layout==PolygonCircuitLayout.Downtown?"DowntownCircuit":layout==PolygonCircuitLayout.Riviera?"RivieraHarbour":layout==PolygonCircuitLayout.Sakura?"SakuraHills":layout==PolygonCircuitLayout.Nordwald?"NordwaldRing":"CoastalExpressway";
             if(PolygonCircuit.Layout==layout){Begin(menuMode);return;}
             if(!Application.CanStreamedLevelBeLoaded(sceneName))
             {
@@ -284,7 +284,8 @@ namespace PolygonRacing
                     if(GUI.Button(new Rect(20,230,280,42),"DOWNTOWN STREETS"))LoadCircuit(PolygonCircuitLayout.Downtown);
                     if(GUI.Button(new Rect(20,280,280,42),"RIVIERA HARBOUR"))LoadCircuit(PolygonCircuitLayout.Riviera);
                     if(GUI.Button(new Rect(20,330,280,42),"SAKURA HILLS"))LoadCircuit(PolygonCircuitLayout.Sakura);
-                    if(GUI.Button(new Rect(20,380,280,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                    if(GUI.Button(new Rect(20,380,280,42),"NORDWALD RING"))LoadCircuit(PolygonCircuitLayout.Nordwald);
+                    if(GUI.Button(new Rect(20,430,280,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
                 }
                 else
                 {

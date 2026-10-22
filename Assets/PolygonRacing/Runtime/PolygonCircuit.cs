@@ -8,7 +8,8 @@ namespace PolygonRacing
         CoastalExpressway,
         Downtown,
         Riviera,
-        Sakura
+        Sakura,
+        Nordwald
     }
 
     // Shared geometry for scenery, race position and AI routes.
@@ -65,11 +66,19 @@ namespace PolygonRacing
             new Vector3(275,0,195),new Vector3(320,0,160),
             new Vector3(345,0,148),new Vector3(378,0,140),new Vector3(386,0,110),new Vector3(410,0,88)};
         static readonly float[] sakuraHeights={4.8f,4.1f,3.4f,2.7f,2.0f,2.0f,2.7f,4.8f,8.3f,11.8f,15.3f,17.4f,18.8f,18.8f,18.1f,16.7f,14.6f,11.8f,8.3f,4.8f,2.7f,2.0f,2.7f,4.1f,5.5f,6.2f,6.2f,6.2f,6.2f,6.2f,6.2f,6.9f,7.6f,9.0f,11.1f,13.2f,16.0f,17.4f,18.1f,18.8f,18.8f,18.4f,17.2f,15.6f,14.0f,12.8f,12.2f,11.2f,10.0f,8.6f,7.4f,6.4f,5.6f};
+        // Nordwald Ring: a long, narrow forest circuit with big elevation changes: twisty esses, a
+        // crest, a plunge into the valley, a long climb to a banked hairpin at the top of the hill,
+        // spectator corners and jumps on the way down, and a long straight back to the line.
+        static readonly Vector3[] nordwaldKnots={new Vector3(0,0,0),new Vector3(110,0,0),new Vector3(220,0,0),new Vector3(310,0,12),new Vector3(360,0,60),new Vector3(415,0,52),new Vector3(455,0,105),new Vector3(512,0,98),new Vector3(548,0,150),new Vector3(600,0,160),new Vector3(650,0,225),new Vector3(715,0,290),new Vector3(780,0,355),new Vector3(830,0,430),new Vector3(845,0,515),new Vector3(852,0,575),new Vector3(878,0,602),new Vector3(915,0,605),new Vector3(965,0,640),new Vector3(990,0,715),new Vector3(975,0,800),new Vector3(935,0,860),new Vector3(890,0,885),new Vector3(870,0,915),new Vector3(830,0,925),new Vector3(800,0,955),new Vector3(740,0,955),new Vector3(675,0,930),new Vector3(615,0,945),new Vector3(555,0,905),new Vector3(500,0,870),new Vector3(440,0,822),new Vector3(380,0,800),new Vector3(320,0,812),new Vector3(265,0,800),new Vector3(225,0,808),new Vector3(205,0,835),new Vector3(205,0,875),new Vector3(180,0,920),new Vector3(120,0,942),new Vector3(40,0,970),new Vector3(-50,0,1000),new Vector3(-140,0,1012),new Vector3(-230,0,1045),new Vector3(-320,0,1060),new Vector3(-400,0,1090),new Vector3(-470,0,1115),new Vector3(-530,0,1140),new Vector3(-570,0,1170),new Vector3(-597,0,1195),new Vector3(-620,0,1201),new Vector3(-636,0,1185),new Vector3(-634,0,1161),new Vector3(-614,0,1143),new Vector3(-592,0,1105),new Vector3(-588,0,1055),new Vector3(-595,0,995),new Vector3(-615,0,930),new Vector3(-650,0,880),new Vector3(-640,0,815),new Vector3(-600,0,770),new Vector3(-615,0,710),new Vector3(-655,0,650),new Vector3(-670,0,575),new Vector3(-650,0,500),new Vector3(-605,0,445),new Vector3(-640,0,385),new Vector3(-600,0,325),new Vector3(-580,0,280),new Vector3(-605,0,240),new Vector3(-598,0,205),new Vector3(-620,0,140),new Vector3(-610,0,70),new Vector3(-570,0,22),new Vector3(-500,0,0),new Vector3(-400,0,-8),new Vector3(-300,0,-8),new Vector3(-200,0,-6),new Vector3(-100,0,-2)};
+        static readonly float[] nordwaldHeights={30f,30f,29.5f,28.5f,27f,25.5f,24f,23f,22.5f,23f,25f,28f,31.5f,29f,30f,31f,31f,30f,26f,20f,14f,10f,9f,9f,9.5f,9f,7.5f,6f,5f,3.5f,2f,0.5f,0f,0f,0.3f,0.5f,1.5f,3f,5f,8f,11f,14f,17.5f,21f,25f,29f,33f,38f,43f,46f,47f,47f,47f,47f,48f,48.5f,47.5f,45f,42f,39f,36f,34f,31f,33.5f,28f,25f,23f,21.5f,21f,21f,21.5f,22f,23f,24.5f,26f,27f,28f,29f,29.5f};
+        // Banked sections: first knot, last knot, degrees (positive raises the right-hand side).
+        static readonly Vector3[] nordwaldBanks={new Vector3(48.6f,53.4f,18)};
         static readonly Vector3[] points=new Vector3[Samples+1];
         static readonly float[] sampleHeights=new float[Samples+1];
         static readonly float[] distances=new float[Samples+1];
         static Vector3[] knots;
         static float[] heights;
+        static Vector3[] banks;
         static PolygonCircuitLayout activeLayout;
         static bool initialized;
 
@@ -78,10 +87,10 @@ namespace PolygonRacing
         public static float RoadHalfWidth { get; private set; }
         public static float Length { get; private set; }
         public static PolygonCircuitLayout Layout=>activeLayout;
-        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":activeLayout==PolygonCircuitLayout.Riviera?"Riviera Harbour":activeLayout==PolygonCircuitLayout.Sakura?"Sakura Hills":"Forest Circuit";
-        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":activeLayout==PolygonCircuitLayout.Riviera?"RivieraV01":activeLayout==PolygonCircuitLayout.Sakura?"SakuraV01":"ForestCircuitV12";
+        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":activeLayout==PolygonCircuitLayout.Riviera?"Riviera Harbour":activeLayout==PolygonCircuitLayout.Sakura?"Sakura Hills":activeLayout==PolygonCircuitLayout.Nordwald?"Nordwald Ring":"Forest Circuit";
+        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":activeLayout==PolygonCircuitLayout.Riviera?"RivieraV01":activeLayout==PolygonCircuitLayout.Sakura?"SakuraV01":activeLayout==PolygonCircuitLayout.Nordwald?"NordwaldV01":"ForestCircuitV12";
         // Distance from the road edge to the barrier line the driver is held inside.
-        public static float BarrierMargin=>activeLayout==PolygonCircuitLayout.Riviera?1.3f:6.5f;
+        public static float BarrierMargin=>activeLayout==PolygonCircuitLayout.Riviera?1.3f:activeLayout==PolygonCircuitLayout.Nordwald?2.5f:6.5f;
         public static bool HasElevation=>heights!=null;
         // The route crosses itself (on a bridge), so projections must also compare heights.
         public static bool HasCrossover=>activeLayout==PolygonCircuitLayout.Sakura;
@@ -95,9 +104,10 @@ namespace PolygonRacing
         {
             if(initialized&&activeLayout==layout)return;
             activeLayout=layout;
-            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:layout==PolygonCircuitLayout.Downtown?downtownKnots:layout==PolygonCircuitLayout.Riviera?rivieraKnots:layout==PolygonCircuitLayout.Sakura?sakuraKnots:forestKnots;
-            heights=layout==PolygonCircuitLayout.Riviera?rivieraHeights:layout==PolygonCircuitLayout.Sakura?sakuraHeights:null;
-            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:layout==PolygonCircuitLayout.Downtown?10f:layout==PolygonCircuitLayout.Riviera?7.5f:9f;
+            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:layout==PolygonCircuitLayout.Downtown?downtownKnots:layout==PolygonCircuitLayout.Riviera?rivieraKnots:layout==PolygonCircuitLayout.Sakura?sakuraKnots:layout==PolygonCircuitLayout.Nordwald?nordwaldKnots:forestKnots;
+            heights=layout==PolygonCircuitLayout.Riviera?rivieraHeights:layout==PolygonCircuitLayout.Sakura?sakuraHeights:layout==PolygonCircuitLayout.Nordwald?nordwaldHeights:null;
+            banks=layout==PolygonCircuitLayout.Nordwald?nordwaldBanks:null;
+            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:layout==PolygonCircuitLayout.Downtown?10f:layout==PolygonCircuitLayout.Riviera?7.5f:layout==PolygonCircuitLayout.Nordwald?7f:9f;
             for(int i=0;i<=Samples;i++)
             {
                 points[i]=Evaluate(i*Mathf.PI*2/Samples);sampleHeights[i]=ElevationAtAngle(i*Mathf.PI*2/Samples);
@@ -126,6 +136,21 @@ namespace PolygonRacing
             float p0=heights[(i+n-1)%n],p1=heights[i%n],p2=heights[(i+1)%n],p3=heights[(i+2)%n];
             return (p0*(1-3*t+3*t2-t3)+p1*(3*t3-6*t2+4)+p2*(-3*t3+3*t2+3*t+1)+p3*t3)/6;
         }
+
+        // Cross-fall in degrees at a race distance (positive: right-hand side higher). Ramps in and
+        // out over 0.8 knot at each end of a banked section; zero on layouts without banking.
+        public static float BankDegrees(float meters)
+        {
+            if(banks==null)return 0;
+            float u=Mathf.Repeat(AngleAtDistance(meters)/(Mathf.PI*2),1)*knots.Length,total=0;
+            foreach(var b in banks)
+            {
+                float w=Mathf.Min(Mathf.SmoothStep(0,1,(u-b.x)/.8f),Mathf.SmoothStep(0,1,(b.y-u)/.8f));
+                if(w>0)total+=b.z*w;
+            }
+            return total;
+        }
+        public static float BankSlope(float meters)=>Mathf.Tan(BankDegrees(meters)*Mathf.Deg2Rad);
 
         public static Vector3 Tangent(float angle)=>(Evaluate(angle+.0005f)-Evaluate(angle-.0005f)).normalized;
 
