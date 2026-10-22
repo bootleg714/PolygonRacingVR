@@ -112,7 +112,7 @@ Fifth circuit, "POLYGON SAKURA" (`PolygonCircuitLayout.Sakura`, scene `Scenes/Sa
 - Headset result (22 Oct): looks really good, good FPS, Ferris wheel turns, mini-map tracks the figure-eight correctly. Accepted.
 - To test on Quest: frame rate (413k triangles; crowd density and pine count are the levers), driving under and over the bridge (no height snapping, lap counter keeps counting, rivals don't brake for cars on the other road), hairpin braking, Ferris wheel turning, minimap readability of the figure-eight.
 
-### Nordwald Ring — Nordwald v01 (built in Unity; tested on Quest 22 Oct, user: "everything is working great")
+### Nordwald Ring — Nordwald v01 (built in Unity; tested on Quest 22 Oct: perfect FPS)
 
 Sixth circuit, "NORDWALD RING" (`PolygonCircuitLayout.Nordwald`, scene `Scenes/NordwaldRing.unity`, lap 5,069 m, road half-width 7 m, barrier margin 2.5 m, Time Trial key `NordwaldV01`). An original take on the great German mountain track: narrow road through a forest tunnel, twisting downhill esses after the start, a crest, a plunge to the valley under a stone road bridge by the village, a long climb to an **18-degree banked concrete hairpin** at the top of the hill (radius about 18 m, needs braking), spectator corners and jumpy dips on the way down, and a long straight home under a second bridge. Heights 0-48 m, grades +9.5 % / -7.7 %.
 
@@ -122,7 +122,7 @@ Sixth circuit, "NORDWALD RING" (`PolygonCircuitLayout.Nordwald`, scene `Scenes/N
 - Look preset Nordwald: cool summer afternoon (sun Euler 42,-150 ×1.22, horizon .78,.84,.86, fog 300-1150 m). Far clip 1350, near 0.1.
 - Menu **15 - Create or Refresh Nordwald Ring** and **Debug - Nordwald Landmark Views**. Race menu now lists six circuits (panel slightly taller).
 - Verified on Thomas's PC on 22 Oct: compiles; menu 15 builds in about 105 s, about 457k scenery triangles (first build was 538k; forest thinned). Landmark views and lap views checked.
-- Quest result (22 Oct): Thomas ran it on the headset and reported everything working great. No separate numbers were given for frame rate, hairpin feel or rivals, so treat those as acceptable but not measured. Original checklist, for any later regression: frame rate (heaviest circuit so far; levers are tree grids in `BuildForest` and crowd density), the banked hairpin feel, rivals in the banked hairpin, lap counting over the 5 km lap, minimap scale.
+- Quest result (22 Oct, Thomas): frame rate perfect, no drops. The banked hairpin is cool but taking it at full speed is nauseating in VR; expected to be fixed by the planned over/understeer handling, which will force braking. Rivals feel good, but because they never brake they are impossible to catch once ahead, so AI tuning and rubberbanding for the player are needed. Lap counting and minimap were fine. Original checklist, for any later regression: frame rate (levers are tree grids in `BuildForest` and crowd density), the banked hairpin feel, rivals in the banked hairpin, lap counting over the 5 km lap, minimap scale.
 
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
@@ -427,6 +427,11 @@ Race several rounds without changing settings first:
 5. Confirm bank alignment, lap position, restart/pause and Time Trial remain correct.
 
 If rivals still cannot recover, inspect real gap, target speed, traffic cap and available straight length before increasing rubberbanding. Adjust one parameter at a time. Do not change baseline pace, drafting and catch-up together or add teleporting.
+
+### Next priority (Thomas, 22 Oct)
+
+1. **Handling pass:** introduce understeer/oversteer with mandatory braking for corners, for both player and AI. This also solves the nauseating full-speed banked hairpin on Nordwald Ring (consider comfort limits on bank tilt and camera roll if it still feels rough).
+2. **AI and catch-up tuning:** rivals never brake, so once ahead they cannot be caught. Give rivals corner and hairpin braking (ties into the handling pass) and add rubberbanding that helps the player catch up (a speed boost when far behind, eased off near the rivals). Change one parameter at a time, as in the Rival Pace notes above; no teleporting.
 
 ### Later, by agreement
 
