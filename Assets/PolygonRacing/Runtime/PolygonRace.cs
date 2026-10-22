@@ -83,7 +83,7 @@ namespace PolygonRacing
             board=new GameObject("Countdown and results - cockpit panel");board.transform.SetParent(player.transform,false);board.transform.localPosition=new Vector3(0,1.32f,1.6f);
             var background=GameObject.CreatePrimitive(PrimitiveType.Cube);background.name="Panel background";background.transform.SetParent(board.transform,false);background.transform.localScale=new Vector3(1.5f,.7f,.018f);
             var collider=background.GetComponent<Collider>();collider.enabled=false;Destroy(collider);
-            var shader=Shader.Find("Universal Render Pipeline/Simple Lit");if(!shader)shader=Shader.Find("Standard");
+            var shader=PolygonLook.LitShader();
             boardMaterial=new Material(shader){name="Race panel charcoal",color=new Color(.025f,.045f,.065f)};
             background.GetComponent<Renderer>().sharedMaterial=boardMaterial;
             boardText=PolygonWorld.Label("Race display",board.transform,"",new Vector3(0,0,-.025f),.009f,new Color(.5f,1,.78f));

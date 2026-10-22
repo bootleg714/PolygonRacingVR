@@ -12,13 +12,32 @@ Latest feedback: Thomas likes the faster opponents and noticed their avoidance b
 
 Immediate next step: keep this baseline and race several rounds to judge whether drafting supports repeated exchanges of position. Only adjust catch-up or baseline pace if those tests show an actual remaining problem. There is no newly approved implementation beyond this handoff.
 
+## Graphics revamp — Look v01: sky, light and water (in testing)
+
+Thomas asked for a graphics revamp done entirely in code (no image generation). Agreed order: sky/lighting/water/shader first, then car and cockpit, then scenery models. Look v01 is committed but **not yet headset-tested**.
+
+What it does (no geometry, route, cockpit, tracking or gameplay changes):
+
+- `PolygonFlat.shader` (Resources): flat-lit polygon shader. Facet normal from screen-space derivatives of camera-relative position, oriented toward the viewer (no reliance on mesh normals or platform derivative sign). Half-wrapped sun + sky/ground hemisphere ambient (material properties, not Unity's ambient probe), mild rim tinted by fog colour, contact darkening on the lower 1.6 m of vertical faces, emission kept (start lights), radial per-pixel linear fog. SRP-batcher layout, stereo/instancing macros, DepthOnly pass.
+- `PolygonWater.shader`: flat water geometry with per-pixel animated triangular-lattice facets (7 m cells, 0.85 m virtual waves), facet colour variation, Fresnel sky reflection (horizon = fog colour), sun glints. Facets fade out 60–320 m and the lattice math is skipped past the fade.
+- `PolygonSky.shader`: skybox gradient (zenith → horizon = fog colour), sun disc/halo from the main light.
+- `PolygonClouds.shader` + generated mesh: 16 faceted cloud puffs 7–17° above the horizon, re-centred on each eye in the vertex shader so they sit at infinity (ring radius 1100 m coastal / 650 m forest, inside the far clip planes 1400/850). Mesh bounds are huge so it is never culled.
+- `PolygonLook.cs` (Runtime): per-layout presets and `LitShader()`; `PolygonWorld.Paint`, `PolygonRace` panel and `PolygonRival` suit/helmet materials now use it.
+- `PolygonLookSetup.cs` (Editor): menu **Polygon Racing → 9 - Apply Sky, Light and Water Look**. Backs up both scenes to `PolygonRacingBackups`, converts Simple Lit materials in place (colour, emission and cull kept), converts water materials only on water objects (merged landmark meshes that share the lagoon colour get a flat “twin” material in `Generated/Look`), sets sun, trilight ambient, fog, skybox and camera clear flags, rebuilds clouds. Menus 6 and 7 call the same apply step, so a coastal scenery refresh keeps the look.
+
+Presets: coastal sun Euler(38,−35) colour (1,.94,.82) ×1.3, fog 380–1300 m, horizon (.66,.86,.93), zenith (.16,.46,.82). Forest sun Euler(42,−35) ×1.25, fog 220–800 m, horizon (.70,.84,.88). Shared ambient sky (.60,.74,.86), ground (.50,.42,.33) × 0.75. Tune live on materials / Lighting window; re-running menu 9 resets to the presets in `PolygonLook.cs`.
+
+Install: pull, let Unity import (check the Console for shader errors — magenta means a shader failed), run menu 9 once, Play in editor, then Build And Run. Watch: shader errors, water shimmer or sparkle in the headset, frame rate on the coastal straight, whether the sun disc/clouds look right in both eyes, cockpit readability.
+
+Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
+
 ## Project, workflow and validation
 
 - Platform: Meta Quest 2 standalone, Windows Unity project.
 - Unity: 6000.6.4f1; URP + OpenXR. Original starter listed URP 17.6.0 and Input System 1.20.0; check the current manifest before changing packages.
 - Working title: Polygon Racing VR. Coastal venue branding: POLYGON COAST.
 - Previously used Windows folder: `C:\Users\User1\Downloads\Polygon Racing VR`.
-- Workflow: assistant supplies small ZIP patches; Thomas replaces scripts, lets Unity compile, refreshes saved scenery when required, then uses Build And Run over USB and reports headset results.
+- Workflow (from October 21, 2026): the repo is `bootleg714/PolygonRacingVR` on GitHub. The assistant commits small changes to `main`; Thomas pulls them with GitHub Desktop, lets Unity compile, runs any editor menu the change needs, then uses Build And Run over USB and reports headset results. ZIP patches are retired. Revert a bad change in GitHub Desktop (History → Revert changes in commit).
 - Codex in VS previously resolved workspace/build issues and implemented working slipstreaming and the original larger coastal layout. Preserve those additions.
 - No Unity editor, C# compiler or Quest is available in this assistant workspace. Numerical/source checks and independent software geometry previews were used; these are not Unity screenshots or hardware performance measurements.
 - Thomas has tested and accepted the delivered features below. No exact measured FPS for this racing project was established here. Maintain the Quest performance target and keep checking on device.

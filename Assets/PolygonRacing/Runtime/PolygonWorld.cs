@@ -16,8 +16,7 @@ namespace PolygonRacing
         public static Material Paint(string name, Color color)
         {
             if (palette.TryGetValue(name, out var old) && old) return old;
-            var shader = Shader.Find("Universal Render Pipeline/Simple Lit");
-            if (!shader) shader = Shader.Find("Standard");
+            var shader = PolygonLook.LitShader();
             var mat = new Material(shader) { name = "PR_" + name, color = color };
             mat.SetFloat("_Smoothness", 0.08f);
             palette[name] = mat;

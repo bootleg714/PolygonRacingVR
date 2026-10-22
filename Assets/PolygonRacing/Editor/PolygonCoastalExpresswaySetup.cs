@@ -87,6 +87,7 @@ namespace PolygonRacing.Editor
                 var scenery=PolygonWorld.BuildCoastalScenery(player.transform.parent);
                 PersistGeneratedAssets(scenery);
                 ConfigureCoastalView(player);
+                PolygonLookSetup.ApplyToOpenScene(PolygonCircuitLayout.CoastalExpressway);
                 Object.DestroyImmediate(oldScenery.gameObject);
                 EditorSceneManager.MarkSceneDirty(coastalScene);
                 if(!EditorSceneManager.SaveScene(coastalScene,CoastalPath))
@@ -155,6 +156,7 @@ namespace PolygonRacing.Editor
                 var scenery=PolygonWorld.BuildCoastalScenery(root);
                 PersistGeneratedAssets(scenery);
                 ConfigureCoastalView(player);
+                PolygonLookSetup.ApplyToOpenScene(PolygonCircuitLayout.CoastalExpressway);
                 Object.DestroyImmediate(oldScenery.gameObject);
                 EditorSceneManager.MarkSceneDirty(scene);
                 if(!EditorSceneManager.SaveScene(scene,CoastalPath))

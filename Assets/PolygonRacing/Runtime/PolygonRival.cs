@@ -113,7 +113,7 @@ namespace PolygonRacing
         }
         void AddDriver()
         {
-            var shader=Shader.Find("Universal Render Pipeline/Simple Lit");if(!shader)shader=Shader.Find("Standard");
+            var shader=PolygonLook.LitShader();
             var suit=new Material(shader){name="Rival driver suit",color=new Color(.06f,.09f,.15f)};
             var helmet=new Material(shader){name="Rival gold helmet",color=new Color(1,.74f,.08f)};
             ownedMaterials.Add(suit);ownedMaterials.Add(helmet);
