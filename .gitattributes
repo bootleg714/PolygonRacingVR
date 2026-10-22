@@ -1,0 +1,14 @@
+# Unity's text assets (scenes, prefabs, materials, meshes saved as YAML) keep
+# whatever line endings Unity wrote, so git never shows phantom whole-file changes.
+*.unity     -text merge=unityyamlmerge diff
+*.prefab    -text merge=unityyamlmerge diff
+*.asset     -text merge=unityyamlmerge diff
+*.mat       -text merge=unityyamlmerge diff
+*.meta      -text merge=unityyamlmerge diff
+*.controller -text merge=unityyamlmerge diff
+*.anim      -text merge=unityyamlmerge diff
+*.cs        text diff=csharp
+*.md        text
+*.txt       text
+*.json      text
+*.shader    text

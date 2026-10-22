@@ -1,0 +1,56 @@
+# Unity: folders Unity rebuilds by itself (~2 GB, never commit)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/.utmp/
+
+# IL2CPP/Android build leftovers Unity makes beside Assets
+/*_BackUpThisFolder_ButDontShipItWithYourGame/
+/*_BurstDebugInformation_DoNotShip/
+
+# Built games and patch ZIPs (share these as releases, not in git)
+*.apk
+*.aab
+*.obb
+*.unitypackage
+/*.zip
+
+# Scene backups made by the Polygon Racing upgrade commands (git history replaces them)
+/PolygonRacingBackups/
+
+# IDE / solution files Unity regenerates
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+ExportedObj/
+.consulo/
+sysinfo.txt
+crashlytics-build.properties
+
+# Unity editor-generated asset files
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
