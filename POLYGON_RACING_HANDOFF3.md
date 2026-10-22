@@ -29,6 +29,16 @@ Presets: coastal sun Euler(38,−35) colour (1,.94,.82) ×1.3, fog 380–1300 m,
 
 Install: pull, let Unity import (check the Console for shader errors — magenta means a shader failed), run menu 9 once, Play in editor, then Build And Run. Watch: shader errors, water shimmer or sparkle in the headset, frame rate on the coastal straight, whether the sun disc/clouds look right in both eyes, cockpit readability.
 
+Headset result for Look v01: accepted, FPS good with no dips, water facets visible but too subtle. Water strengthened in the next commit (cell 8 m, waves 1.5 m, speed 1.2, tint 0.22, fade 90–420 m, Fresnel 0.35, glint 2.0 / power 60); menu 9 writes these values onto the existing water materials.
+
+### Car and cockpit — Car v01 (in testing)
+
+Menu **Polygon Racing → 10 - Rebuild Player Car (Faceted)** (`Editor/PolygonCarSetup.cs`) backs up both scenes and replaces the player car's old box parts with one multi-material faceted body mesh: lofted nose with ivory centre stripe, open cockpit tub, shaped sidepods with dark intakes, engine cover/airbox, floor, diffuser strakes, two-element front wing, rear wing with swan-neck pylons, wishbones/pushrods and mirrors. It also rebuilds the steering wheel (flat-bottom rim, grips, centre plate with coloured buttons, yellow top marker) under the existing `Steering wheel` pivot, and gives each existing tyre an 18-sided chamfered mesh plus a rim child with five ivory spokes and a metal nut.
+
+Kept exactly: car root and `PolygonDriver` values, `Seated tracking space`/camera at `(0, 1.03, −0.53)`, the tuned `Dashboard` box (0, .8, .43; scale .4×.15×.1) and `Live instruments` text, steering/wheel pivots and the `wheels`/`frontSteering`/`steeringWheel` references. Only known old part names are deleted. Steering-wheel top stays at y ≈ .83 so it does not cover the instrument text from the seat.
+
+Meshes and seven double-sided flat-lit materials live in `Assets/PolygonRacing/Generated/Car`. The livery material is `PR_Vermilion car body` (name prefix required: rivals recolour `PR_Vermilion*`), so rivals get the new body in their team colours automatically. Re-running menu 10 reuses the same assets and keeps any colours tuned in the Inspector. Body is about 2,000 triangles in one renderer.
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation

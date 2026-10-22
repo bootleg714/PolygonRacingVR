@@ -118,6 +118,10 @@ namespace PolygonRacing.Editor
                 m.shader=water;
                 m.SetColor("_BaseColor",color);m.SetFloat("_Cull",cull);
                 m.SetColor("_ReflectionZenith",preset.WaterZenith);
+                // Look v02 water strength (v01 was too subtle in the headset).
+                m.SetFloat("_CellSize",8);m.SetFloat("_WaveHeight",1.5f);m.SetFloat("_WaveSpeed",1.2f);
+                m.SetFloat("_FacetFadeStart",90);m.SetFloat("_FacetFadeEnd",420);m.SetFloat("_Fresnel",.35f);
+                m.SetFloat("_Specular",2);m.SetFloat("_SpecularPower",60);m.SetFloat("_FacetTint",.22f);
                 SetAmbient(m);
                 EditorUtility.SetDirty(m);
             }

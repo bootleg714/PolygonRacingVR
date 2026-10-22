@@ -11,15 +11,15 @@ Shader "Polygon Racing/Faceted Water"
         _SkyAmbient("Sky ambient", Color) = (0.60,0.74,0.86,1)
         _GroundAmbient("Ground ambient", Color) = (0.50,0.42,0.33,1)
         _AmbientStrength("Ambient strength", Range(0,2)) = 0.75
-        _CellSize("Facet size (m)", Float) = 7
-        _WaveHeight("Wave height (m)", Float) = 0.85
-        _WaveSpeed("Wave speed", Float) = 1
-        _FacetFadeStart("Facet fade start (m)", Float) = 60
-        _FacetFadeEnd("Facet fade end (m)", Float) = 320
-        _Fresnel("Sky reflection", Range(0,1)) = 0.30
-        _Specular("Sun glint", Range(0,4)) = 1.4
-        _SpecularPower("Glint sharpness", Range(8,400)) = 90
-        _FacetTint("Facet tint variation", Range(0,0.5)) = 0.10
+        _CellSize("Facet size (m)", Float) = 8
+        _WaveHeight("Wave height (m)", Float) = 1.5
+        _WaveSpeed("Wave speed", Float) = 1.2
+        _FacetFadeStart("Facet fade start (m)", Float) = 90
+        _FacetFadeEnd("Facet fade end (m)", Float) = 420
+        _Fresnel("Sky reflection", Range(0,1)) = 0.35
+        _Specular("Sun glint", Range(0,4)) = 2.0
+        _SpecularPower("Glint sharpness", Range(8,400)) = 60
+        _FacetTint("Facet tint variation", Range(0,0.5)) = 0.22
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 2
     }
     SubShader
