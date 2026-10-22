@@ -78,15 +78,15 @@ Material:
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
-    - _CellSize: 7
+    - _CellSize: 8
     - _Cull: 2
     - _Cutoff: 0.5
     - _DstBlend: 0
     - _DstBlendAlpha: 0
-    - _FacetFadeEnd: 320
-    - _FacetFadeStart: 60
-    - _FacetTint: 0.1
-    - _Fresnel: 0.3
+    - _FacetFadeEnd: 420
+    - _FacetFadeStart: 90
+    - _FacetTint: 0.22
+    - _Fresnel: 0.35
     - _GlossinessSource: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
@@ -95,18 +95,18 @@ Material:
     - _Smoothness: 0.08
     - _SmoothnessSource: 0
     - _SpecSource: 0
-    - _Specular: 1.4
+    - _Specular: 2
     - _SpecularHighlights: 1
-    - _SpecularPower: 90
+    - _SpecularPower: 60
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
-    - _WaveHeight: 0.85
-    - _WaveSpeed: 1
+    - _WaveHeight: 1.5
+    - _WaveSpeed: 1.2
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.025, g: 0.42999998, b: 0.63, a: 1}
+    - _BaseColor: {r: 0.025, g: 0.42999992, b: 0.63, a: 1}
     - _Color: {r: 0.025, g: 0.42999998, b: 0.63, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GroundAmbient: {r: 0.5, g: 0.42, b: 0.33, a: 1}
