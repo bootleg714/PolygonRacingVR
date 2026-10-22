@@ -70,6 +70,21 @@ Headset result for Scenery v01: looked good; forest good. Two bugs: palm fronds 
 - Bridge: gates removed (parapet gaps at ±88 closed); twin teal tied arches (parabola, 16.8 m crown) with cream hangers at the markers and three overhead braces; octagonal piers.
 - Forest (menu 11): pit garages rebuilt (canopy, fascia, slatted roller door, pilasters, roof units, number panel) using their own materials; grandstand rebuilt with benches, ~130 fans, back/side walls, columns, trussed cantilever roof (`Generated/Scenery/PR_Crowd *` materials; hidden `Grandstand materials` marker keeps the palette for re-runs).
 
+### Downtown street circuit — Downtown v01 (built in Unity, not yet on Quest)
+
+New third circuit, "POLYGON CITY" (`PolygonCircuitLayout.Downtown`, scene `Assets/PolygonRacing/Scenes/DowntownCircuit.unity`, lap 3,213 m, road half-width 10 m). Inspired by the reserved downtown screenshots' ideas (dense stands, repeated canopies, bold team flags, tall buildings, busy gantry), with original designs and the game's palette.
+
+- Route: city grid with 90-degree corners (B-spline radius about 35 m, fine at the 21.6 m minimum turning radius at top speed), boulevards up to about 700 m, two block-step jogs. Knots 32 m either side of each grid corner. Start straight runs +x; inside of the loop is +z.
+- Race menu: circuit list is FOREST / COASTAL / DOWNTOWN STREETS / BACK (desktop buttons too). Time Trial key `DowntownV01`.
+- Look preset: golden hour (sun Euler 26,-62, warm 1.35, peach horizon .93,.80,.68, fog 320-1150 m). Camera far clip 1400.
+- `Runtime/PolygonDowntownArt.cs` builds everything, baked per material into 400 m chunks via `PolygonSceneryKit` (ground sits at y -0.25 to avoid distant z-fighting with road paint at .025):
+  cross-section road 0-10 m (edge line 9.6-10) | kerbs 10-11.2 at corners | run-off to 16.8 | livery wall 16.8-17.4 with debris fence to 4 m | sidewalk to 26 | buildings from 27.5 m (footprint+2.5 m clearance by `ProjectLap`). Driver barrier limit 16.5 m matches the wall.
+  Start gantry at d 32 (truss, "POLYGON CITY" depth-tested lettering both sides, five-light signal with `PolygonStartLights`), timing pylon, six grandstands with seated crowds (`PersonLite`) and peaked canopy modules, team garage block with six paddock car slots (filled by `PolygonCarSetup.FillParkedCarSlots`), monorail viaduct crossing the north boulevard at 10 m with a parked train, street lamps, trees, team flags, corner boards, procedural towers (glass, stepped, round, apartments, plazas) with three detail levels by distance from the track, harbor with sea wall, water and boats, distant skyline ring.
+- Menu **12 - Create or Refresh Downtown Circuit** (`Editor/PolygonDowntownSetup.cs`): first run copies the Forest scene (tested car, cockpit, tracking, race systems), then builds scenery, parked cars, persists meshes/materials in `Generated/Downtown` (folder replaced each build), applies the look, adds all three scenes to the build list. Menu 9 now also covers Downtown.
+- Menu **Debug - Next Circuit Viewpoint** steps the Scene view through overviews, driver-height and helicopter views every 1/16 lap (its Ctrl+Shift+V shortcut conflicts with an Edit menu shortcut; use the menu).
+- Verified on Thomas's PC on 22 Oct via desktop control: compiles (only existing deprecation warnings), menu 12 builds in about 40 s with 757 scenery renderers and about 400k scenery triangles; Scene views checked around the lap. In editor Play mode the race menu and rivals did not appear (dashboard showed the plain driver readout), so the race flow must be checked in a Quest build; the driver itself drove and hit the corner wall correctly.
+- Not yet checked: Quest frame rate (400k triangles is the main risk; levers are crowd density `Hash<.24` skip, tower band spacing, chunk size, fence posts), race start/rivals on device, minimap scale for the bigger layout.
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation
