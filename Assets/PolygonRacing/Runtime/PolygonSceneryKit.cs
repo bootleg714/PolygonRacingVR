@@ -128,6 +128,32 @@ namespace PolygonRacing
             else Box(hair,L(0,1.27f,-.02f),new Vector3(.25f,.08f,.25f)*scale,Quaternion.LookRotation(f));
         }
 
+        // Cheaper spectator for big crowds (about 35 triangles): torso, head and hair only;
+        // legs are hidden behind the bench in front. Optional raised arms.
+        public void PersonLite(Vector3 seat,Vector3 facing,float scale,Material shirt,Material skin,Material hair,bool raisedArms)
+        {
+            var f=new Vector3(facing.x,0,facing.z).normalized;var r=Vector3.Cross(Vector3.up,f);
+            Vector3 L(float across,float height,float forward)=>seat+(r*across+Vector3.up*height+f*forward)*scale;
+            var bottom=new Vector3[6];var top=new Vector3[6];
+            for(int i=0;i<6;i++)
+            {
+                float t=(i+.5f)*Mathf.PI*2/6;float c=Mathf.Cos(t),s=Mathf.Sin(t);
+                bottom[i]=L(c*.19f,.05f,s*.13f);top[i]=L(c*.22f,.98f,s*.12f);
+            }
+            Prism(shirt,bottom,top);
+            if(raisedArms)foreach(float side in new[]{-1f,1f})
+                Beam(shirt,L(side*.2f,.9f,0),L(side*.32f,1.55f,.05f),.09f*scale,.09f*scale);
+            var h=L(0,1.17f,0);float hr=.13f*scale,hy=.15f*scale;
+            var pts=new[]{h+r*hr,h+f*hr,h-r*hr,h-f*hr};var crown=h+Vector3.up*hy;var chin=h-Vector3.up*hy;
+            for(int i=0;i<4;i++)
+            {
+                var a=pts[i];var b=pts[(i+1)%4];
+                Tri(skin,a,b,chin,h);
+                // Upper half of the head is the hair / cap colour.
+                Tri(hair,a,b,crown,h);
+            }
+        }
+
         // Bakes everything into one child object per material.
         public void Emit(Transform parent)
         {

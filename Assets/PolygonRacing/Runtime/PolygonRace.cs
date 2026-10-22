@@ -100,7 +100,7 @@ namespace PolygonRacing
             string restart=mode==Mode.TimeTrial?"RESTART TIME TRIAL":"RESTART RACE";
             if(selectingCircuit)
             {
-                SetBoard("SELECT CIRCUIT\n"+(selection==0?"> ":"  ")+"FOREST CIRCUIT\n"+(selection==1?"> ":"  ")+"COASTAL EXPRESSWAY\n"+(selection==2?"> ":"  ")+"BACK\nSTICK UP/DOWN   A: SELECT\nY / M: MENU",true);
+                SetBoard("SELECT CIRCUIT\n"+(selection==0?"> ":"  ")+"FOREST CIRCUIT\n"+(selection==1?"> ":"  ")+"COASTAL EXPRESSWAY\n"+(selection==2?"> ":"  ")+"DOWNTOWN STREETS\n"+(selection==3?"> ":"  ")+"BACK\nSTICK UP/DOWN   A: SELECT\nY / M: MENU",true);
                 return;
             }
             SetBoard("POLYGON RACING VR\n"+(selection==0?"> ":"  ")+"START RACE\n"+(selection==1?"> ":"  ")+"TIME TRIAL\n"+(selection==2?"> ":"  ")+restart+"\nSTICK UP/DOWN   A: SELECT\nY / M: MENU",true);
@@ -135,14 +135,15 @@ namespace PolygonRacing
                 float y=0;if(left.TryGetFeatureValue(CommonUsages.primary2DAxis,out var stick))y=stick.y;
                 if(keyboard!=null){if(keyboard.upArrowKey.isPressed)y=1;if(keyboard.downArrowKey.isPressed)y=-1;}
                 bool held=Mathf.Abs(y)>.6f;
-                if(held&&!navLatched){selection=(selection+(y>0?2:1))%3;DrawMenu();}
+                int options=selectingCircuit?4:3;
+                if(held&&!navLatched){selection=(selection+(y>0?options-1:1))%options;DrawMenu();}
                 navLatched=held;
                 if(confirmPressed)
                 {
                     if(selectingCircuit)
                     {
-                        if(selection==2){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
-                        else LoadCircuit(selection==0?PolygonCircuitLayout.Forest:PolygonCircuitLayout.CoastalExpressway);
+                        if(selection==3){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                        else LoadCircuit(selection==0?PolygonCircuitLayout.Forest:selection==1?PolygonCircuitLayout.CoastalExpressway:PolygonCircuitLayout.Downtown);
                     }
                     else if(selection<2)
                     {
@@ -257,7 +258,7 @@ namespace PolygonRacing
         }
         void LoadCircuit(PolygonCircuitLayout layout)
         {
-            string sceneName=layout==PolygonCircuitLayout.Forest?"ForestCircuit":"CoastalExpressway";
+            string sceneName=layout==PolygonCircuitLayout.Forest?"ForestCircuit":layout==PolygonCircuitLayout.Downtown?"DowntownCircuit":"CoastalExpressway";
             if(PolygonCircuit.Layout==layout){Begin(menuMode);return;}
             if(!Application.CanStreamedLevelBeLoaded(sceneName))
             {
@@ -280,7 +281,8 @@ namespace PolygonRacing
                 {
                     if(GUI.Button(new Rect(20,130,280,42),"FOREST CIRCUIT"))LoadCircuit(PolygonCircuitLayout.Forest);
                     if(GUI.Button(new Rect(20,180,280,42),"COASTAL EXPRESSWAY"))LoadCircuit(PolygonCircuitLayout.CoastalExpressway);
-                    if(GUI.Button(new Rect(20,230,280,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                    if(GUI.Button(new Rect(20,230,280,42),"DOWNTOWN STREETS"))LoadCircuit(PolygonCircuitLayout.Downtown);
+                    if(GUI.Button(new Rect(20,280,280,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
                 }
                 else
                 {

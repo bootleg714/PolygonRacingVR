@@ -5,7 +5,8 @@ namespace PolygonRacing
     public enum PolygonCircuitLayout
     {
         Forest,
-        CoastalExpressway
+        CoastalExpressway,
+        Downtown
     }
 
     // Shared geometry for scenery, race position and AI routes.
@@ -28,6 +29,17 @@ namespace PolygonRacing
             new Vector3(-327.6f,0,218.4f),new Vector3(-252,0,184.8f),new Vector3(-176.4f,0,126),
             new Vector3(-197.4f,0,50.4f),new Vector3(-294,0,-33.6f),new Vector3(-352.8f,0,-134.4f),
             new Vector3(-252,0,-252),new Vector3(-117.6f,0,-151.2f)};
+        // Downtown street circuit: city-block grid with 90-degree corners (about 35 m radius),
+        // long boulevards for drafting and two block-step jogs. Knots sit 32 m either side of
+        // each grid corner, so consecutive knots on one street keep the road exactly straight.
+        static readonly Vector3[] downtownKnots={
+            new Vector3(32f,0,0f),new Vector3(182f,0,0f),new Vector3(332f,0,0f),new Vector3(482f,0,0f),new Vector3(632f,0,0f),
+            new Vector3(668f,0,0f),new Vector3(700f,0,32f),new Vector3(700f,0,182f),new Vector3(700f,0,332f),new Vector3(700f,0,388f),
+            new Vector3(668f,0,420f),new Vector3(518f,0,420f),new Vector3(412f,0,420f),new Vector3(380f,0,452f),new Vector3(380f,0,602f),
+            new Vector3(380f,0,668f),new Vector3(348f,0,700f),new Vector3(198f,0,700f),new Vector3(48f,0,700f),new Vector3(-102f,0,700f),
+            new Vector3(-252f,0,700f),new Vector3(-288f,0,700f),new Vector3(-320f,0,668f),new Vector3(-320f,0,518f),new Vector3(-320f,0,368f),
+            new Vector3(-320f,0,292f),new Vector3(-288f,0,260f),new Vector3(-152f,0,260f),new Vector3(-120f,0,228f),new Vector3(-120f,0,78f),
+            new Vector3(-120f,0,32f),new Vector3(-88f,0,0f),new Vector3(-32f,0,0f)};
         static readonly Vector3[] points=new Vector3[Samples+1];
         static readonly float[] distances=new float[Samples+1];
         static Vector3[] knots;
@@ -39,8 +51,8 @@ namespace PolygonRacing
         public static float RoadHalfWidth { get; private set; }
         public static float Length { get; private set; }
         public static PolygonCircuitLayout Layout=>activeLayout;
-        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":"Forest Circuit";
-        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":"ForestCircuitV12";
+        public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":"Forest Circuit";
+        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":"ForestCircuitV12";
 
         static PolygonCircuit()
         {
@@ -51,8 +63,8 @@ namespace PolygonRacing
         {
             if(initialized&&activeLayout==layout)return;
             activeLayout=layout;
-            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:forestKnots;
-            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:9f;
+            knots=layout==PolygonCircuitLayout.CoastalExpressway?coastalKnots:layout==PolygonCircuitLayout.Downtown?downtownKnots:forestKnots;
+            RoadHalfWidth=layout==PolygonCircuitLayout.CoastalExpressway?11f:layout==PolygonCircuitLayout.Downtown?10f:9f;
             for(int i=0;i<=Samples;i++)
             {
                 points[i]=Evaluate(i*Mathf.PI*2/Samples);
