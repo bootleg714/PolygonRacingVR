@@ -656,18 +656,40 @@ namespace PolygonRacing
 
         static Material GlassFor(float pick)=>pick<.33f?glassBlue:pick<.66f?glassTeal:glassGold;
 
+        // Windows never overlap walls: facades are stacked as solid wall slabs and recessed glass
+        // bands (or deep proud fins), so no two surfaces sit within a few centimetres of each other.
+        // Shallow overlaps flickered in the headset at distance (depth-buffer precision).
+        const float Recess=.35f,Proud=.6f;
+
+        // Alternating wall slabs and recessed glass from y0 to y1 (relative to c).
+        static void Facade(PolygonSceneryKit kit,Vector3 c,float hx,float hz,float y0,float y1,float step,float glassShare,Material wall,Material glass)
+        {
+            float y=y0;
+            while(y+step<=y1+.01f)
+            {
+                float g=step*glassShare;
+                kit.Box(wall,c+Vector3.up*(y+(step-g)*.5f),new Vector3(hx*2,step-g,hz*2));
+                kit.Sleeve(glass,c+Vector3.up*(y+step-g*.5f),new Vector3(hx*2-Recess*2,g,hz*2-Recess*2));
+                y+=step;
+            }
+            if(y1-y>.05f)kit.Box(wall,c+Vector3.up*((y+y1)*.5f),new Vector3(hx*2,y1-y,hz*2));
+        }
+
         static void GlassTower(PolygonSceneryKit kit,Vector3 c,float hx,float hz,float h,int detail,float pick)
         {
             var glass=GlassFor(pick*3%1);var frame=pick<.5f?cream:steel;
-            kit.Box(stoneDark,c+Vector3.up*3,new Vector3(hx*2+3,6,hz*2+3));
-            kit.Box(glassDark,c+Vector3.up*4.5f,new Vector3(hx*2+3.2f,2.2f,hz*2+3.2f));
-            kit.Box(glass,c+Vector3.up*(6+(h-6)*.5f),new Vector3(hx*2-.6f,h-6,hz*2-.6f));
+            // Podium: stone base, recessed lobby glass, stone cap.
+            kit.Box(stoneDark,c+Vector3.up*1.7f,new Vector3(hx*2+3,3.4f,hz*2+3));
+            kit.Sleeve(glassDark,c+Vector3.up*4.5f,new Vector3(hx*2+3-Recess*2,2.2f,hz*2+3-Recess*2));
+            kit.Box(stoneDark,c+Vector3.up*5.8f,new Vector3(hx*2+3,.4f,hz*2+3));
+            // Curtain wall: glass shaft with proud floor bands.
+            kit.Box(glass,c+Vector3.up*(6+(h-6)*.5f),new Vector3(hx*2-1.2f,h-6,hz*2-1.2f));
             float spacing=detail==2?6.3f:12.6f;
             for(float y=6+spacing;y<h-2;y+=spacing)
-                kit.Box(frame,c+Vector3.up*y,new Vector3(hx*2+.1f,.55f,hz*2+.1f));
-            // Corner fins.
+                kit.Box(frame,c+Vector3.up*y,new Vector3(hx*2,.55f,hz*2));
+            // Corner fins, well proud of the glass.
             foreach(int sx in new[]{-1,1})foreach(int sz in new[]{-1,1})
-                kit.Box(frame,c+new Vector3(sx*(hx-.15f),6+(h-6)*.5f,sz*(hz-.15f)),new Vector3(.9f,h-6,.9f));
+                kit.Box(frame,c+new Vector3(sx*(hx-.2f),6+(h-6)*.5f,sz*(hz-.2f)),new Vector3(1.0f,h-6,1.0f));
             // Crown: setback penthouse, crown ring and a mast on the tallest.
             kit.Box(glassDark,c+Vector3.up*(h+3),new Vector3(hx*1.3f,6,hz*1.3f));
             kit.Box(frame,c+Vector3.up*(h+6.4f),new Vector3(hx*1.5f,.8f,hz*1.5f));
@@ -681,16 +703,17 @@ namespace PolygonRacing
             for(int tier=0;tier<3;tier++)
             {
                 float sx=hx*scale[tier],sz=hz*scale[tier],y1=tops[tier];
-                kit.Box(body,c+Vector3.up*((y0+y1)*.5f),new Vector3(sx*2,y1-y0,sz*2));
-                kit.Box(trim,c+Vector3.up*(y1+.35f),new Vector3(sx*2+.8f,.7f,sz*2+.8f));
-                // Vertical window strips on all four faces.
+                // Recessed dark glass core with deep stone piers standing proud of it.
+                kit.Box(body,c+Vector3.up*(y0+1.5f),new Vector3(sx*2,3,sz*2));
+                kit.Box(glassDark,c+Vector3.up*((y0+3+y1)*.5f),new Vector3(sx*2-Recess*4,y1-y0-3,sz*2-Recess*4));
                 float step=detail==2?3.4f:7;
-                for(float u=-sx+2;u<=sx-2;u+=step)
+                for(float u=-sx;u<=sx+.01f;u+=Mathf.Max(step,(sx*2)/Mathf.Max(1,Mathf.Round(sx*2/step))))
                     foreach(int f in new[]{-1,1})
-                        kit.Box(glassDark,c+new Vector3(u,(y0+y1)*.5f+1,f*(sz+.06f)),new Vector3(1.3f,y1-y0-4,.2f));
-                for(float u=-sz+2;u<=sz-2;u+=step)
+                        kit.Box(body,c+new Vector3(Mathf.Clamp(u,-sx+.5f,sx-.5f),(y0+3+y1)*.5f,f*(sz-.5f)),new Vector3(1.0f,y1-y0-3,1.0f+Proud));
+                for(float u=-sz;u<=sz+.01f;u+=Mathf.Max(step,(sz*2)/Mathf.Max(1,Mathf.Round(sz*2/step))))
                     foreach(int f in new[]{-1,1})
-                        kit.Box(glassDark,c+new Vector3(f*(sx+.06f),(y0+y1)*.5f+1,u),new Vector3(.2f,y1-y0-4,1.3f));
+                        kit.Box(body,c+new Vector3(f*(sx-.5f),(y0+3+y1)*.5f,Mathf.Clamp(u,-sz+.5f,sz-.5f)),new Vector3(1.0f+Proud,y1-y0-3,1.0f));
+                kit.Box(trim,c+Vector3.up*(y1+.35f),new Vector3(sx*2+1.2f,.7f,sz*2+1.2f));
                 y0=y1+.7f;
             }
             kit.Chamfered(trim,c+Vector3.up*(h+.7f),hx*.35f,hz*.35f,.3f,.3f,0,h*.12f,hx*.1f);
@@ -705,9 +728,9 @@ namespace PolygonRacing
             for(float y=10;y<h-3;y+=spacing)
             {
                 float t=(y-6)/(h-6),rr=Mathf.Lerp(r,r*.92f,t);
-                kit.Column(cream,c+Vector3.up*y,rr+.3f,rr+.3f,.5f,8);
+                kit.Column(cream,c+Vector3.up*y,rr+Proud,rr+Proud,.5f,8);
             }
-            kit.Column(cream,c+Vector3.up*h,r*.92f+.6f,r*.5f,4,8);
+            kit.Column(cream,c+Vector3.up*h,r*.92f+.8f,r*.5f,4,8);
             kit.Column(steel,c+Vector3.up*(h+4),1,.12f,h*.15f,6);
         }
 
@@ -715,13 +738,10 @@ namespace PolygonRacing
         {
             var body=facades[Mathf.FloorToInt(pick*facades.Length)%facades.Length];
             var band=body==cream||body==stone?navy:cream;
-            kit.Box(body,c+Vector3.up*(h*.5f),new Vector3(hx*2,h,hz*2));
-            float floor=3.6f;
-            for(float y=4.8f;y<h-1.5f;y+=floor*(detail==2?1:2))
-                kit.Box(glassDark,c+Vector3.up*y,new Vector3(hx*2+.14f,1.5f,hz*2+.14f));
-            kit.Box(band,c+Vector3.up*(h+.4f),new Vector3(hx*2+.5f,.8f,hz*2+.5f));
-            // Ground-floor shop band and a coloured awning facing the nearest street.
-            kit.Box(glassDark,c+Vector3.up*1.6f,new Vector3(hx*2+.16f,2.6f,hz*2+.16f));
+            // Recessed shop glass at street level, then stacked floors of wall and window.
+            kit.Sleeve(glassDark,c+Vector3.up*1.5f,new Vector3(hx*2-Recess*2,3,hz*2-Recess*2));
+            Facade(kit,c,hx,hz,3,h,detail==2?3.6f:7.2f,.42f,body,glassDark);
+            kit.Box(band,c+Vector3.up*(h+.4f),new Vector3(hx*2+.6f,.8f,hz*2+.6f));
             if(detail==2)
             {
                 var toTrack=ToTrack(c);var awning=teamColors[Mathf.FloorToInt(pick*97)%teamColors.Length];
@@ -745,8 +765,10 @@ namespace PolygonRacing
         static void SimpleBlock(PolygonSceneryKit kit,Vector3 c,float hx,float hz,float h,float pick)
         {
             var body=pick<.4f?distant:pick<.7f?stone:distantDark;
-            kit.Box(body,c+Vector3.up*(h*.5f),new Vector3(hx*2,h,hz*2));
-            kit.Box(glassDark,c+Vector3.up*(h*.6f),new Vector3(hx*2+.2f,h*.08f+1,hz*2+.2f));
+            float g0=h*.55f,g1=h*.63f+1;
+            kit.Box(body,c+Vector3.up*(g0*.5f),new Vector3(hx*2,g0,hz*2));
+            kit.Sleeve(glassDark,c+Vector3.up*((g0+g1)*.5f),new Vector3(hx*2-1.2f,g1-g0,hz*2-1.2f));
+            kit.Box(body,c+Vector3.up*((g1+h)*.5f),new Vector3(hx*2,h-g1,hz*2));
         }
 
         static Vector3 ToTrack(Vector3 c)

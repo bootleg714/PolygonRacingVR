@@ -56,6 +56,16 @@ namespace PolygonRacing
             Prism(m,new[]{V(-1,-1,-1),V(1,-1,-1),V(1,-1,1),V(-1,-1,1)},new[]{V(-1,1,-1),V(1,1,-1),V(1,1,1),V(-1,1,1)});
         }
 
+        // Four side walls of a box, no top or bottom (8 triangles): for recessed glass bands
+        // whose top and bottom are hidden by the wall slabs above and below.
+        public void Sleeve(Material m,Vector3 centre,Vector3 size)
+        {
+            var h=size*.5f;
+            Vector3 V(float x,float y,float z)=>centre+new Vector3(x*h.x,y*h.y,z*h.z);
+            var b=new[]{V(-1,-1,-1),V(1,-1,-1),V(1,-1,1),V(-1,-1,1)};var t=new[]{V(-1,1,-1),V(1,1,-1),V(1,1,1),V(-1,1,1)};
+            for(int i=0;i<4;i++){int j=(i+1)%4;Quad(m,b[i],b[j],t[j],t[i],centre);}
+        }
+
         // Rectangular beam between two points (width across, height roughly vertical).
         public void Beam(Material m,Vector3 from,Vector3 to,float width,float height)
         {

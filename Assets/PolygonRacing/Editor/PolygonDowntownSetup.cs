@@ -62,7 +62,7 @@ namespace PolygonRacing.Editor
                 // Start the car on the new grid and give the camera the city's view distance.
                 player.transform.position=PolygonWorld.Point(0);
                 player.transform.rotation=Quaternion.LookRotation(PolygonWorld.Tangent(0));
-                if(player.view){player.view.farClipPlane=1400;EditorUtility.SetDirty(player.view);}
+                if(player.view){player.view.farClipPlane=1400;player.view.nearClipPlane=.1f;EditorUtility.SetDirty(player.view);}
                 EditorUtility.SetDirty(player.transform);
 
                 PersistGeneratedAssets(scenery);
