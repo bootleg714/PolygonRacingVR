@@ -198,7 +198,7 @@ namespace PolygonRacing
         static void BuildRoad(Chunks chunks)
         {
             int n=PolygonCircuit.SampleCount;float length=PolygonCircuit.Length,step=length/n;
-            const float checkerEnd=3.2f;
+            const float checkerEnd=1.6f;
             for(int i=0;i<n;i++)
             {
                 float d0=i*step,d1=(i+1)*step,dm=(d0+d1)*.5f;
@@ -215,14 +215,14 @@ namespace PolygonRacing
                 if(d0<checkerEnd)
                 {
                     // Start/finish checks replace the asphalt in this short stretch (no overlay).
-                    const int rows=3,cols=16;
+                    const int rows=2,cols=24;
                     for(int r=0;r<rows;r++)for(int c=0;c<cols;c++)
                     {
-                        float a0=Mathf.Lerp(d0,d1,r/(float)rows),a1=Mathf.Lerp(d0,d1,(r+1)/(float)rows);
+                        float a0=d0+checkerEnd*r/rows,a1=d0+checkerEnd*(r+1)/rows;
                         float l0=-9.6f+c*19.2f/cols,l1=l0+19.2f/cols;
                         Ribbon(kit,(r+c)%2==0?line:checkDark,a0,a1,l0,l1,.025f);
                     }
-                    continue;
+                    d0=checkerEnd;
                 }
                 bool dash=(i/3)%2==0&&!corner;
                 Ribbon(kit,asphalt,d0,d1,-9.6f,-.12f,.025f);
@@ -249,13 +249,12 @@ namespace PolygonRacing
                     // Livery boards change every four segments (about 25 m).
                     var board=boards[((i/4)+(side>0?3:0))%boards.Length];
                     WallSegment(kit,side,d0,d1,WallIn,WallOut,Base,WallTop,board);
-                    WallSegment(kit,side,d0,d1,WallIn-.06f,WallOut+.06f,WallTop,WallTop+.08f,wall);
                     WallSegment(kit,side,d0,d1,WallOut,WalkOut,Base,.15f,walk);
                     // Debris fence: two rails, posts every other segment.
                     float rail=side*(WallIn+WallOut)*.5f;
-                    kit.Beam(fence,At(d0,rail,2.4f),At(d1,rail,2.4f),.06f,.06f);
-                    kit.Beam(fence,At(d0,rail,4.0f),At(d1,rail,4.0f),.06f,.06f);
-                    if(i%2==0)kit.Beam(fence,At(d0,rail,WallTop+.08f),At(d0,rail,4.05f),.1f,.1f);
+                    kit.Rail(fence,At(d0,rail,2.4f),At(d1,rail,2.4f),.06f);
+                    kit.Rail(fence,At(d0,rail,4.0f),At(d1,rail,4.0f),.06f);
+                    if(i%2==0)kit.Beam(fence,At(d0,rail,WallTop),At(d0,rail,4.05f),.1f,.1f);
                 }
             }
         }
@@ -397,7 +396,7 @@ namespace PolygonRacing
                     {
                         float z=z0+.9f+s*1.05f;
                         float h=Hash(z+theme*31,r);
-                        if(h<.16f)continue;
+                        if(h<.24f)continue;
                         var shirt=shirts[Mathf.FloorToInt(Hash(z,r,3)*shirts.Length)%shirts.Length];
                         if(Hash(z,r,9)<.35f)shirt=teamColors[(sct+theme)%teamColors.Length];
                         kit.PersonLite(new Vector3(sign*(x0+.45f),top+.18f,z),facing,.95f+h*.12f,shirt,
@@ -663,7 +662,7 @@ namespace PolygonRacing
             kit.Box(stoneDark,c+Vector3.up*3,new Vector3(hx*2+3,6,hz*2+3));
             kit.Box(glassDark,c+Vector3.up*4.5f,new Vector3(hx*2+3.2f,2.2f,hz*2+3.2f));
             kit.Box(glass,c+Vector3.up*(6+(h-6)*.5f),new Vector3(hx*2-.6f,h-6,hz*2-.6f));
-            float spacing=detail==2?4.2f:12.6f;
+            float spacing=detail==2?6.3f:12.6f;
             for(float y=6+spacing;y<h-2;y+=spacing)
                 kit.Box(frame,c+Vector3.up*y,new Vector3(hx*2+.1f,.55f,hz*2+.1f));
             // Corner fins.

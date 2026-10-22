@@ -64,6 +64,16 @@ namespace PolygonRacing
             Prism(m,new[]{from-u-v,from+u-v,from+u+v,from-u+v},new[]{to-u-v,to+u-v,to+u+v,to-u+v});
         }
 
+        // Thin open rail (no end caps, 8 triangles): for long fence rails seen side-on.
+        public void Rail(Material m,Vector3 from,Vector3 to,float size)
+        {
+            var d=(to-from).normalized;var up=Mathf.Abs(d.y)<.95f?Vector3.up:Vector3.right;
+            var u=Vector3.Cross(up,d).normalized*(size*.5f);var v=Vector3.Cross(d,u).normalized*(size*.5f);
+            var a=new[]{from-u-v,from+u-v,from+u+v,from-u+v};var b=new[]{to-u-v,to+u-v,to+u+v,to-u+v};
+            var centre=(from+to)*.5f;
+            for(int i=0;i<4;i++){int j=(i+1)%4;Quad(m,a[i],a[j],b[j],b[i],centre);}
+        }
+
         // Chamfered rectangle (octagon) footprint from y0 to y1, tapering from (hx0,hz0) to (hx1,hz1).
         public void Chamfered(Material m,Vector3 baseCentre,float hx0,float hz0,float hx1,float hz1,float y0,float y1,float chamfer)
         {

@@ -80,6 +80,44 @@ namespace PolygonRacing.Editor
             }
         }
 
+        // Debug helper: steps the Scene view through overview, driver-height and helicopter views
+        // of the current circuit, for checking scenery without driving a lap.
+        static int viewpoint;
+        [MenuItem("Polygon Racing/Debug - Next Circuit Viewpoint %#v")]
+        static void NextViewpoint()
+        {
+            var view=SceneView.lastActiveSceneView;
+            if(!view){Debug.LogWarning("Open a Scene view first.");return;}
+            var selector=Object.FindFirstObjectByType<PolygonCircuitSelector>();
+            if(selector)PolygonCircuit.SetLayout(selector.Layout);
+            const int laps=16;
+            int count=2+laps*2;int k=viewpoint++%count;
+            Vector3 position;Quaternion rotation;string label;
+            if(k==0){position=new Vector3(190,700,-450);rotation=Quaternion.Euler(52,0,0);label="Overview";}
+            else if(k==1){position=new Vector3(1100,420,1300);rotation=Quaternion.Euler(28,-140,0);label="Harbor-side overview";}
+            else
+            {
+                int i=(k-2)/2;bool high=(k-2)%2==1;
+                float d=i*PolygonCircuit.Length/laps;
+                var forward=PolygonCircuit.Tangent(PolygonCircuit.AngleAtDistance(d));
+                if(high)
+                {
+                    position=PolygonCircuit.AtDistance(d)-forward*60+Vector3.up*45;
+                    rotation=Quaternion.LookRotation(forward)*Quaternion.Euler(25,0,0);label=$"Helicopter {d:0} m";
+                }
+                else
+                {
+                    position=PolygonCircuit.AtDistance(d)+Vector3.up*1.3f;
+                    rotation=Quaternion.LookRotation(forward)*Quaternion.Euler(3,0,0);label=$"Driver {d:0} m";
+                }
+            }
+            var temp=new GameObject("Viewpoint (temporary)");temp.hideFlags=HideFlags.HideAndDontSave;
+            temp.transform.SetPositionAndRotation(position,rotation);
+            view.AlignViewToObject(temp.transform);Object.DestroyImmediate(temp);
+            view.Repaint();
+            Debug.Log($"Viewpoint {k+1}/{count}: {label}");
+        }
+
         static void Report(Transform scenery,double seconds,bool created)
         {
             long triangles=0;int renderers=0;
