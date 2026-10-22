@@ -222,7 +222,10 @@ namespace PolygonRacing
             for(int i=0;i<TerrainSamples;i+=3){float w=1/((tPts[i]-p).sqrMagnitude+1600);sum+=tH[i]*w;weight+=w;}
             float blend=sum/weight;
             float h=Mathf.Lerp(low-.4f,blend,Mathf.SmoothStep(0,1,Mathf.InverseLerp(11,48,o)))+Hills(x,z)*Mathf.SmoothStep(0,1,Mathf.InverseLerp(30,170,o));
-            return ApplySites(x,z,h);
+            // Levelled sites may only lower the ground right beside the road (the pit apron);
+            // raising it there would bury the track, so their pull upward fades out within 60 m.
+            float site=ApplySites(x,z,h);
+            return site<h?site:Mathf.Lerp(h,site,Mathf.SmoothStep(0,1,Mathf.InverseLerp(18,60,o)));
         }
 
         static void BuildTerrain(Chunks chunks)
@@ -864,7 +867,7 @@ namespace PolygonRacing
             float mid=(PitStart+PitEnd)*.5f;
             float pitGround=Mathf.Min(Mathf.Min(E(PitStart),E(mid)),Mathf.Min(E(PitEnd),E(PitEnd+40)))-.5f;
             AddSite(P(mid),T(mid),48,(PitEnd-PitStart)*.5f+14,pitGround,30);
-            AddSite(new Vector3(VillageSite.x,0,VillageSite.y),Vector3.forward,70,55,TerrainHeight(VillageSite.x,VillageSite.y),90);
+            AddSite(new Vector3(VillageSite.x,0,VillageSite.y),Vector3.forward,70,55,TerrainHeight(VillageSite.x,VillageSite.y),70);
             AddSite(new Vector3(CampSite.x,0,CampSite.y),Vector3.forward,45,95,TerrainHeight(CampSite.x,CampSite.y),80);
             PrepareGround();
             var world=new GameObject(SceneryName).transform;world.SetParent(circuitRoot,false);
