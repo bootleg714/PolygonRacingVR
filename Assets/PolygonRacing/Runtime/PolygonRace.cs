@@ -12,6 +12,14 @@ namespace PolygonRacing
         enum Phase { Menu,Countdown,Driving,Finished }
         enum Mode { Race,TimeTrial }
         const int RaceLaps=3;
+        // After the player finishes, rivals still running get this long to cross the line.
+        const float ClassificationSeconds=30;
+        static readonly PolygonCircuitLayout[] circuitOrder={PolygonCircuitLayout.Forest,PolygonCircuitLayout.CoastalExpressway,
+            PolygonCircuitLayout.Downtown,PolygonCircuitLayout.Riviera,PolygonCircuitLayout.Sakura,PolygonCircuitLayout.Nordwald};
+        static readonly string[] circuitLabels={"FOREST CIRCUIT","COASTAL EXPRESSWAY","DOWNTOWN STREETS","RIVIERA HARBOUR","SAKURA HILLS","NORDWALD RING"};
+        readonly float[] menuRecords=new float[circuitOrder.Length];
+        float playerFinish,classifyUntil,raceRecord,nextResults;
+        bool classified,newRecord;
         PolygonDriver player;
         PolygonStartLights startLights;
         PolygonRival[] rivals;
@@ -28,7 +36,11 @@ namespace PolygonRacing
         static bool pendingLaunch;
         static PolygonCircuitLayout pendingLayout;
         static Mode pendingMode;
-        string BestKey=>"PolygonRacing."+PolygonCircuit.LayoutId+".TimeTrialBest";
+        // Time Trial keys are unchanged from earlier versions; race best laps are kept separately
+        // because drafting makes race laps faster than a solo lap.
+        static string RecordKey(PolygonCircuitLayout layout,Mode recordMode)=>"PolygonRacing."+PolygonCircuit.LayoutIdFor(layout)+(recordMode==Mode.TimeTrial?".TimeTrialBest":".RaceBestLap");
+        string BestKey=>RecordKey(PolygonCircuit.Layout,Mode.TimeTrial);
+        string RaceBestKey=>RecordKey(PolygonCircuit.Layout,Mode.Race);
         int FieldSize=>rivals.Length+1;
         GameObject board;
         TextMesh boardText;
@@ -100,16 +112,29 @@ namespace PolygonRacing
             string restart=mode==Mode.TimeTrial?"RESTART TIME TRIAL":"RESTART RACE";
             if(selectingCircuit)
             {
-                SetBoard("SELECT CIRCUIT\n"+(selection==0?"> ":"  ")+"FOREST CIRCUIT\n"+(selection==1?"> ":"  ")+"COASTAL EXPRESSWAY\n"+(selection==2?"> ":"  ")+"DOWNTOWN STREETS\n"+(selection==3?"> ":"  ")+"RIVIERA HARBOUR\n"+(selection==4?"> ":"  ")+"SAKURA HILLS\n"+(selection==5?"> ":"  ")+"NORDWALD RING\n"+(selection==6?"> ":"  ")+"BACK\nSTICK: MOVE  A: SELECT  Y: MENU",true);
+                var text=new System.Text.StringBuilder(menuMode==Mode.Race?"SELECT CIRCUIT  BEST RACE LAP\n":"SELECT CIRCUIT  BEST TIME TRIAL\n");
+                for(int i=0;i<circuitOrder.Length;i++)
+                    text.Append(selection==i?"> ":"  ").Append(circuitLabels[i]).Append("  ").Append(RecordText(menuRecords[i])).Append('\n');
+                text.Append(selection==circuitOrder.Length?"> ":"  ").Append("BACK\nSTICK: MOVE  A: SELECT  Y: MENU");
+                SetBoard(text.ToString(),true);
                 return;
             }
             SetBoard("POLYGON RACING VR\n"+(selection==0?"> ":"  ")+"START RACE\n"+(selection==1?"> ":"  ")+"TIME TRIAL\n"+(selection==2?"> ":"  ")+restart+"\nSTICK UP/DOWN   A: SELECT\nY / M: MENU",true);
+        }
+        static string RecordText(float seconds)=>seconds>0?PolygonDriver.FormatTime(seconds):"--:--.-";
+        // Read once when the circuit list opens (not every frame).
+        void OpenCircuitList(Mode selected)
+        {
+            menuMode=selected;selectingCircuit=true;selection=0;
+            for(int i=0;i<circuitOrder.Length;i++)menuRecords[i]=PlayerPrefs.GetFloat(RecordKey(circuitOrder[i],menuMode),0);
+            DrawMenu();
         }
         void Begin(Mode selected)
         {
             ClearSlipstream();
             mode=selected;player.RestartRace();player.RaceManaged=true;player.SetRaceLock(true);resetSerial=player.ResetSerial;
-            trialBest=PlayerPrefs.GetFloat(BestKey,0);
+            trialBest=PlayerPrefs.GetFloat(BestKey,0);raceRecord=PlayerPrefs.GetFloat(RaceBestKey,0);
+            classified=newRecord=false;playerFinish=0;
             foreach(var car in rivals){car.RestartRace();car.RaceManaged=true;car.SetParticipating(mode==Mode.Race);car.SetRaceLock(true);}
             for(int i=0;i<finishTimes.Length;i++){finishTimes[i]=-1;previousRivalLaps[i]=rivals[i].RaceDistance/PolygonCircuit.Length;}
             progress.Reset(player.transform.position);
@@ -135,21 +160,17 @@ namespace PolygonRacing
                 float y=0;if(left.TryGetFeatureValue(CommonUsages.primary2DAxis,out var stick))y=stick.y;
                 if(keyboard!=null){if(keyboard.upArrowKey.isPressed)y=1;if(keyboard.downArrowKey.isPressed)y=-1;}
                 bool held=Mathf.Abs(y)>.6f;
-                int options=selectingCircuit?7:3;
+                int options=selectingCircuit?circuitOrder.Length+1:3;
                 if(held&&!navLatched){selection=(selection+(y>0?options-1:1))%options;DrawMenu();}
                 navLatched=held;
                 if(confirmPressed)
                 {
                     if(selectingCircuit)
                     {
-                        if(selection==6){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
-                        else LoadCircuit(selection==0?PolygonCircuitLayout.Forest:selection==1?PolygonCircuitLayout.CoastalExpressway:selection==2?PolygonCircuitLayout.Downtown:selection==3?PolygonCircuitLayout.Riviera:selection==4?PolygonCircuitLayout.Sakura:PolygonCircuitLayout.Nordwald);
+                        if(selection==circuitOrder.Length){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                        else LoadCircuit(circuitOrder[selection]);
                     }
-                    else if(selection<2)
-                    {
-                        menuMode=selection==0?Mode.Race:Mode.TimeTrial;
-                        selectingCircuit=true;selection=0;DrawMenu();
-                    }
+                    else if(selection<2)OpenCircuitList(selection==0?Mode.Race:Mode.TimeTrial);
                     else Begin(mode);
                 }
                 return;
@@ -172,38 +193,83 @@ namespace PolygonRacing
                 }
                 return;
             }
-            if(phase!=Phase.Driving)return;
+            if(phase!=Phase.Driving&&phase!=Phase.Finished)return;
             float dt=Mathf.Min(Time.deltaTime,.05f);elapsed+=dt;
+            TrackRivalFinishes(dt);
+            if(phase==Phase.Finished){UpdateClassification();return;}
             float previousPlayerLaps=progress.LapsTravelled;
             int before=progress.Laps;progress.Tick(player.transform.position);
             UpdatePlayerSlipstream(dt);
-            // Rivals report their actual accumulated route distance, rather than estimating
-            // their lap count from a sideways offset on the visible road.
             place=1;
             if(mode==Mode.Race)for(int i=0;i<rivals.Length;i++)
-            {
-                float laps=rivals[i].RaceDistance/PolygonCircuit.Length;
-                if(laps>=RaceLaps&&finishTimes[i]<0)
-                {finishTimes[i]=elapsed-dt+dt*Mathf.InverseLerp(previousRivalLaps[i],laps,RaceLaps);rivals[i].SetRaceLock(true);}
-                previousRivalLaps[i]=laps;
-                if(finishTimes[i]>=0||laps>progress.LapsTravelled+.0001f)place++;
-            }
+                if(finishTimes[i]>=0||rivals[i].RaceDistance/PolygonCircuit.Length>progress.LapsTravelled+.0001f)place++;
             if(progress.Laps>before)
             {
                 lastLap=elapsed-lapStarted;lapStarted=elapsed;
                 if(bestLap==0||lastLap<bestLap)bestLap=lastLap;
                 if(mode==Mode.TimeTrial&&(trialBest==0||lastLap<trialBest))
                 {trialBest=lastLap;PlayerPrefs.SetFloat(BestKey,trialBest);PlayerPrefs.Save();}
+                if(mode==Mode.Race&&(raceRecord==0||lastLap<raceRecord))
+                {raceRecord=lastLap;newRecord=true;PlayerPrefs.SetFloat(RaceBestKey,raceRecord);PlayerPrefs.Save();}
             }
             if(mode==Mode.Race&&progress.Laps>=RaceLaps)
             {
-                float playerFinish=elapsed-dt+dt*Mathf.InverseLerp(previousPlayerLaps,progress.LapsTravelled,RaceLaps);
+                playerFinish=elapsed-dt+dt*Mathf.InverseLerp(previousPlayerLaps,progress.LapsTravelled,RaceLaps);
                 finalPlace=1;foreach(float time in finishTimes)if(time>=0&&time<=playerFinish)finalPlace++;
-                place=finalPlace;phase=Phase.Finished;player.SetRaceLock(true);foreach(var car in rivals)car.SetRaceLock(true);
-                ClearSlipstream();
-                SetBoard($"FINISH - {Ordinal(finalPlace)} PLACE\nTOTAL {PolygonDriver.FormatTime(elapsed)}\nBEST LAP {PolygonDriver.FormatTime(bestLap)}\nA / R: RACE AGAIN\nY / M: MENU",true);
+                // Only the player stops; rivals still racing run on to the line (they ignore
+                // stopped cars in their traffic checks) so the results show a real order.
+                place=finalPlace;phase=Phase.Finished;player.SetRaceLock(true);
+                ClearSlipstream();classifyUntil=elapsed+ClassificationSeconds;nextResults=0;
+                UpdateClassification();
             }
             else if(elapsed>=goUntil)SetBoard("",false);
+        }
+        // Rivals report their actual accumulated route distance, rather than estimating
+        // their lap count from a sideways offset on the visible road.
+        void TrackRivalFinishes(float dt)
+        {
+            if(mode!=Mode.Race)return;
+            for(int i=0;i<rivals.Length;i++)
+            {
+                float laps=rivals[i].RaceDistance/PolygonCircuit.Length;
+                if(laps>=RaceLaps&&finishTimes[i]<0)
+                {finishTimes[i]=elapsed-dt+dt*Mathf.InverseLerp(previousRivalLaps[i],laps,RaceLaps);rivals[i].SetRaceLock(true);}
+                previousRivalLaps[i]=laps;
+            }
+        }
+        void UpdateClassification()
+        {
+            if(!classified)
+            {
+                bool all=true;foreach(float time in finishTimes)if(time<0)all=false;
+                if(all||elapsed>=classifyUntil){classified=true;foreach(var car in rivals)car.SetRaceLock(true);}
+            }
+            // The order only changes as rivals cross the line; refresh a few times a second.
+            if(elapsed<nextResults&&!classified)return;
+            nextResults=elapsed+.25f;
+            SetBoard(ResultsText(),true);
+        }
+        string ResultsText()
+        {
+            int n=FieldSize;var names=new string[n];var times=new float[n];var laps=new float[n];
+            names[0]="YOU";times[0]=playerFinish;laps[0]=RaceLaps;
+            for(int i=0;i<rivals.Length;i++){names[i+1]=rivals[i].DisplayName;times[i+1]=finishTimes[i];laps[i+1]=Mathf.Min(RaceLaps,rivals[i].RaceDistance/PolygonCircuit.Length);}
+            var order=new int[n];for(int i=0;i<n;i++)order[i]=i;
+            // Finishers by time, then cars still running by distance covered.
+            System.Array.Sort(order,(a,b)=>times[a]>=0&&times[b]>=0?times[a].CompareTo(times[b]):times[a]>=0?-1:times[b]>=0?1:laps[b].CompareTo(laps[a]));
+            var text=new System.Text.StringBuilder($"FINISH - {Ordinal(finalPlace)} PLACE\n");
+            float winner=times[order[0]];
+            for(int r=0;r<n;r++)
+            {
+                int i=order[r];string value;
+                if(r==0)value=PolygonDriver.FormatTime(times[i]);
+                else if(times[i]>=0){float gap=times[i]-winner;value=gap<60?$"+{gap:0.0}s":"+"+PolygonDriver.FormatTime(gap);}
+                else if(!classified)value="RUNNING";
+                else{int down=Mathf.FloorToInt(RaceLaps-laps[i]);value=down>0?$"+{down} LAP":"NO TIME";}
+                text.Append(r+1).Append(i==0?" > ":"   ").Append(names[i]).Append("   ").Append(value).Append('\n');
+            }
+            text.Append("BEST LAP ").Append(PolygonDriver.FormatTime(bestLap)).Append(newRecord?"  NEW RECORD":"").Append("\nA: RACE AGAIN   Y: MENU");
+            return text.ToString();
         }
         void LateUpdate()
         {
@@ -279,18 +345,14 @@ namespace PolygonRacing
             {
                 if(selectingCircuit)
                 {
-                    if(GUI.Button(new Rect(20,130,280,42),"FOREST CIRCUIT"))LoadCircuit(PolygonCircuitLayout.Forest);
-                    if(GUI.Button(new Rect(20,180,280,42),"COASTAL EXPRESSWAY"))LoadCircuit(PolygonCircuitLayout.CoastalExpressway);
-                    if(GUI.Button(new Rect(20,230,280,42),"DOWNTOWN STREETS"))LoadCircuit(PolygonCircuitLayout.Downtown);
-                    if(GUI.Button(new Rect(20,280,280,42),"RIVIERA HARBOUR"))LoadCircuit(PolygonCircuitLayout.Riviera);
-                    if(GUI.Button(new Rect(20,330,280,42),"SAKURA HILLS"))LoadCircuit(PolygonCircuitLayout.Sakura);
-                    if(GUI.Button(new Rect(20,380,280,42),"NORDWALD RING"))LoadCircuit(PolygonCircuitLayout.Nordwald);
-                    if(GUI.Button(new Rect(20,430,280,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
+                    for(int i=0;i<circuitOrder.Length;i++)
+                        if(GUI.Button(new Rect(20,130+50*i,340,42),circuitLabels[i]+"   "+RecordText(menuRecords[i])))LoadCircuit(circuitOrder[i]);
+                    if(GUI.Button(new Rect(20,130+50*circuitOrder.Length,340,42),"BACK")){selectingCircuit=false;selection=menuMode==Mode.Race?0:1;DrawMenu();}
                 }
                 else
                 {
-                    if(GUI.Button(new Rect(20,130,280,42),"START RACE")){menuMode=Mode.Race;selectingCircuit=true;selection=0;DrawMenu();}
-                    if(GUI.Button(new Rect(20,180,280,42),"TIME TRIAL")){menuMode=Mode.TimeTrial;selectingCircuit=true;selection=0;DrawMenu();}
+                    if(GUI.Button(new Rect(20,130,280,42),"START RACE"))OpenCircuitList(Mode.Race);
+                    if(GUI.Button(new Rect(20,180,280,42),"TIME TRIAL"))OpenCircuitList(Mode.TimeTrial);
                     if(GUI.Button(new Rect(20,230,280,42),"RESTART CURRENT MODE"))Begin(mode);
                 }
             }

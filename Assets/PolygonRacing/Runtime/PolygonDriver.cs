@@ -11,6 +11,8 @@ namespace PolygonRacing
     public sealed class PolygonDriver : MonoBehaviour
     {
         public static readonly Vector3 Seat = new Vector3(0,1.03f,-.53f);
+        // Steering geometry shared with the rivals' corner-speed rule.
+        public const float Wheelbase=2.85f, LockFalloff=.065f;
         public Camera view;
         public Transform trackingSpace, steeringWheel;
         public Transform[] frontSteering, wheels;
@@ -113,8 +115,8 @@ namespace PolygonRacing
                 speed=Mathf.Clamp(speed+(throttle*boostedAcceleration-brake*braking-1.3f-speed*.025f-(offroad?4:0))*dt,0,Mathf.Max(cap,speed));
                 if(speed>cap)speed=Mathf.MoveTowards(speed,cap,dt*12);
                 // Decrease steering lock at speed to keep cornering predictable.
-                float lockDegrees=steeringAngle/(1+speed*.065f);
-                float yaw=speed/2.85f*Mathf.Tan(steering*lockDegrees*Mathf.Deg2Rad)*Mathf.Rad2Deg;
+                float lockDegrees=steeringAngle/(1+speed*LockFalloff);
+                float yaw=speed/Wheelbase*Mathf.Tan(steering*lockDegrees*Mathf.Deg2Rad)*Mathf.Rad2Deg;
                 // Steering stays in the horizontal route plane; bank roll is applied below.
                 var flatForward=transform.forward;flatForward.y=0;flatForward.Normalize();
                 float heading=Mathf.Atan2(flatForward.x,flatForward.z)*Mathf.Rad2Deg+yaw*dt;
@@ -148,6 +150,13 @@ namespace PolygonRacing
             }
             if(engine)engine.SetDriving(paused||RaceLocked?0:speed/topSpeed,paused||RaceLocked?0:throttle);
             if(dashboard)dashboard.text=$"{SpeedKmh:000} KM/H\n{(paused?"PAUSED":"LAP "+lap)}  {FormatTime(lapTime)}";
+        }
+        // Highest speed (m/s) at which full steering lock still holds a turn of this radius.
+        // The rivals use exactly this rule, so they slow only where the player has to.
+        public float CornerSpeedLimit(float radius)
+        {
+            float needed=Mathf.Atan(Wheelbase/Mathf.Max(radius,1))*Mathf.Rad2Deg;
+            return Mathf.Max(0,(steeringAngle/needed-1)/LockFalloff);
         }
         public static string FormatTime(float seconds) => $"{(int)(seconds/60):00}:{seconds%60:00.0}";
         static int NearestPoint(Vector3 p,out float distance)

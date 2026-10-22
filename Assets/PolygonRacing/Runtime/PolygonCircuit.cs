@@ -88,7 +88,9 @@ namespace PolygonRacing
         public static float Length { get; private set; }
         public static PolygonCircuitLayout Layout=>activeLayout;
         public static string LayoutName=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"Coastal Expressway":activeLayout==PolygonCircuitLayout.Downtown?"Downtown Street Circuit":activeLayout==PolygonCircuitLayout.Riviera?"Riviera Harbour":activeLayout==PolygonCircuitLayout.Sakura?"Sakura Hills":activeLayout==PolygonCircuitLayout.Nordwald?"Nordwald Ring":"Forest Circuit";
-        public static string LayoutId=>activeLayout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":activeLayout==PolygonCircuitLayout.Downtown?"DowntownV01":activeLayout==PolygonCircuitLayout.Riviera?"RivieraV01":activeLayout==PolygonCircuitLayout.Sakura?"SakuraV01":activeLayout==PolygonCircuitLayout.Nordwald?"NordwaldV01":"ForestCircuitV12";
+        public static string LayoutId=>LayoutIdFor(activeLayout);
+        // Saved-record key part for each layout (keep stable: changing one resets its records).
+        public static string LayoutIdFor(PolygonCircuitLayout layout)=>layout==PolygonCircuitLayout.CoastalExpressway?"CoastalExpresswayV01":layout==PolygonCircuitLayout.Downtown?"DowntownV01":layout==PolygonCircuitLayout.Riviera?"RivieraV01":layout==PolygonCircuitLayout.Sakura?"SakuraV01":layout==PolygonCircuitLayout.Nordwald?"NordwaldV01":"ForestCircuitV12";
         // Distance from the road edge to the barrier line the driver is held inside.
         public static float BarrierMargin=>activeLayout==PolygonCircuitLayout.Riviera?1.3f:activeLayout==PolygonCircuitLayout.Nordwald?2.5f:6.5f;
         public static bool HasElevation=>heights!=null;

@@ -29,6 +29,7 @@ namespace PolygonRacing
         public void RestartRace(){ResetRival();paused=false;}
         const int Samples=1024;
         public int GridSlot { get; private set; }
+        public string DisplayName=>names[GridSlot].ToUpperInvariant();
         static readonly List<PolygonRival> traffic=new List<PolygonRival>();
         static readonly string[] names={"blue", "yellow", "green"};
         static readonly Color[] colors={new Color(.035f,.32f,.95f),new Color(1,.72f,.025f),new Color(.08f,.75f,.26f)};
@@ -44,6 +45,9 @@ namespace PolygonRacing
         readonly Dictionary<Transform,Transform> copied=new Dictionary<Transform,Transform>();
         readonly Dictionary<Material,Material> recolored=new Dictionary<Material,Material>();
         readonly float[] arc=new float[Samples+1];
+        // Centre-line curvature every CurveStep metres, for the corner-speed lookahead.
+        const float CurveStep=2,PlanDeceleration=14,CornerMargin=.97f;
+        float[] curvature;
         Mesh helmetMesh;
         float distance,speed,spin,lane=-3.5f,laneGoal=-3.5f,totalLength;
         float slipstreamStrength;
@@ -86,7 +90,10 @@ namespace PolygonRacing
             AddDriver();traffic.Add(this);
             var last=PolygonWorld.Point(0);
             for(int i=1;i<=Samples;i++){var p=PolygonWorld.Point(i*Mathf.PI*2/Samples);arc[i]=arc[i-1]+Vector3.Distance(last,p);last=p;}
-            totalLength=arc[Samples];ResetRival();
+            totalLength=arc[Samples];
+            curvature=new float[Mathf.CeilToInt(totalLength/CurveStep)+1];
+            for(int i=0;i<curvature.Length;i++)curvature[i]=PolygonCircuit.Curvature(i*CurveStep);
+            ResetRival();
         }
         void CopyBranch(Transform original,Transform parent)
         {
@@ -160,10 +167,10 @@ namespace PolygonRacing
                 }
             }
             SetSlipstreamStrength(slipstream.Advance(draft,dt));
-            // Current arcade handling has no corner traction limit for either racer.
-            // Keep traffic spacing below, but do not brake just because the route bends.
+            // Corners: rivals obey the player's own steering limit (full lock at speed), so they
+            // brake only for hairpins the player cannot take flat out. No extra grip rule.
             float boostedNominalSpeed=NominalSpeed*paceMultiplier*(1+PolygonSlipstream.SpeedBonus*slipstreamStrength);
-            float targetSpeed=boostedNominalSpeed;
+            float targetSpeed=Mathf.Min(boostedNominalSpeed,CornerLookahead());
             float angle=AngleAt(distance);
             var center=PolygonWorld.Point(angle);var side=PolygonWorld.Side(angle);
             var tangent=PolygonWorld.Tangent(angle);
@@ -191,8 +198,25 @@ namespace PolygonRacing
             spin=(spin+speed/.39f*Mathf.Rad2Deg*dt)%360;
             foreach(var w in wheels)if(w)w.localRotation=Quaternion.Euler(spin,0,0);
             // Shared circuit curvature animates the front wheels through both left and right turns.
-            float curvature=PolygonCircuit.Curvature(distance);
-            foreach(var w in frontPivots)if(w)w.localRotation=Quaternion.Euler(0,Mathf.Atan(2.85f*curvature)*Mathf.Rad2Deg,0);
+            float bend=PolygonCircuit.Curvature(distance);
+            foreach(var w in frontPivots)if(w)w.localRotation=Quaternion.Euler(0,Mathf.Atan(PolygonDriver.Wheelbase*bend)*Mathf.Rad2Deg,0);
+        }
+        // Fastest speed now that still allows braking (at PlanDeceleration) to every corner limit ahead.
+        float CornerLookahead()
+        {
+            float limit=float.PositiveInfinity,look=Mathf.Min(150,speed*speed/(2*PlanDeceleration)+10);
+            for(float ahead=0;ahead<=look;ahead+=4)
+            {
+                float k=curvature[Mathf.RoundToInt(Mathf.Repeat(distance+ahead,totalLength)/CurveStep)%curvature.Length];
+                if(Mathf.Abs(k)<.01f)continue; // wider than 100 m radius: never limiting
+                // Positive curvature turns right; the right-hand (+) lane is then on the inside.
+                // Use whichever of the current and target lanes is further inside (conservative).
+                float inner=k>0?Mathf.Max(lane,laneGoal):-Mathf.Min(lane,laneGoal);
+                float radius=1/Mathf.Abs(k)-inner;
+                float v=player.CornerSpeedLimit(radius)*CornerMargin;
+                limit=Mathf.Min(limit,Mathf.Sqrt(v*v+2*PlanDeceleration*ahead));
+            }
+            return limit;
         }
         void ResetPace(){paceAdjustment=playerGapMeters=0;paceMultiplier=1;}
         void UpdatePace(float dt)
@@ -217,8 +241,8 @@ namespace PolygonRacing
         {
             float gap=1000;
             float y=transform.position.y;
-            CheckGap(player.transform.position,center,forward,side,targetLane,y,ref gap);
-            foreach(var other in traffic)if(other&&other!=this&&other.Participating)
+            if(!player.RaceLocked)CheckGap(player.transform.position,center,forward,side,targetLane,y,ref gap);
+            foreach(var other in traffic)if(other&&other!=this&&other.Participating&&!other.RaceLocked)
                 CheckGap(other.transform.position,center,forward,side,targetLane,y,ref gap);
             return gap;
         }
@@ -232,8 +256,8 @@ namespace PolygonRacing
         bool LaneClear(Vector3 center,Vector3 forward,Vector3 side,float candidate)
         {
             float y=transform.position.y;
-            if(BlocksLane(player.transform.position,center,forward,side,candidate,y))return false;
-            foreach(var other in traffic)if(other&&other!=this&&other.Participating&&BlocksLane(other.transform.position,center,forward,side,candidate,y))return false;
+            if(!player.RaceLocked&&BlocksLane(player.transform.position,center,forward,side,candidate,y))return false;
+            foreach(var other in traffic)if(other&&other!=this&&other.Participating&&!other.RaceLocked&&BlocksLane(other.transform.position,center,forward,side,candidate,y))return false;
             return true;
         }
         static bool BlocksLane(Vector3 p,Vector3 center,Vector3 forward,Vector3 side,float candidate,float y)

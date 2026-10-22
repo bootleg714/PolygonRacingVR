@@ -433,6 +433,16 @@ If rivals still cannot recover, inspect real gap, target speed, traffic cap and 
 1. **Handling pass:** introduce understeer/oversteer with mandatory braking for corners, for both player and AI. This also solves the nauseating full-speed banked hairpin on Nordwald Ring (consider comfort limits on bank tilt and camera roll if it still feels rough).
 2. **AI and catch-up tuning:** rivals never brake, so once ahead they cannot be caught. Give rivals corner and hairpin braking (ties into the handling pass) and add rubberbanding that helps the player catch up (a speed boost when far behind, eased off near the rivals). Change one parameter at a time, as in the Rival Pace notes above; no teleporting.
 
+### Polish v01: hairpin braking, saved race records, podium (22 Oct, not yet compiled or headset-tested)
+
+Code only, no scene regeneration needed. Compiled by Unity only; no compiler was available in the assistant workspace.
+
+- **Rivals brake for hairpins using the player's own steering limit.** `PolygonDriver.CornerSpeedLimit(radius)` returns the speed at which full lock (`steeringAngle/(1+speed*LockFalloff)`, wheelbase 2.85) still holds a radius; `Wheelbase`/`LockFalloff` are now shared constants. `PolygonRival.CornerLookahead()` reads a curvature table (every 2 m), looks ahead far enough to stop at 14 m/s2 and caps target speed at 97 % of the limit for the inside lane it occupies. It is not a separate grip rule, so rivals slow only where the player physically must. Python check of the six layouts (lane +-3.5 m): only Forest bend at ~515 m (~91 km/h), Riviera hairpin ~1,008 m (~106), Sakura ~2,112 m (~116) and ~3,351 m (~141), Nordwald banked hairpin ~3,238 m (~80) get limits; Coastal and Downtown unchanged. Bank effect on turning is not modelled. Tune `CornerMargin`/`PlanDeceleration` in `PolygonRival` if rivals brake too early/late.
+- **Race best lap saved per circuit** (`PolygonRacing.<LayoutId>.RaceBestLap`, separate from the unchanged Time Trial keys). The circuit list now shows the best race lap (Start Race) or best Time Trial (Time Trial) next to each circuit; `PolygonCircuit.LayoutIdFor(layout)` added.
+- **Podium/results screen:** after you finish, rivals keep racing to the line (up to 30 s) and the panel lists the full order with gaps (`RUNNING` while pending, `+n LAP` or `NO TIME` after), plus your best lap and `NEW RECORD`. Stopped (finished/locked) cars no longer block rivals' lane/gap checks.
+- To test: Nordwald hairpin and Riviera hairpin (rivals should slow and not run wide), a full 3-lap race to the results screen, menu record display, Time Trial records unchanged.
+- Still open from the to-do list: Spa-style, Monza-style and desert night circuits, time-of-day variants, crowd/tree/draw-call review (Quest results so far show no dips).
+
 ### Later, by agreement
 
 - Higher overall speed, then a deliberate handling pass with understeer/oversteer.
