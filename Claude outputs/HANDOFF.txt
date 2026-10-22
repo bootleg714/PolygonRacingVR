@@ -1,0 +1,988 @@
+================================================================================
+ SEED CITY  —  PROJECT HANDOFF
+ Browser game + Meta Quest VR build, made with Claude on 2026-10-09/10
+ (original build session, a second session that evening, and a third
+ on 2026-10-10). Neon Cycles followed on 2026-10-13; Neon Sumo, the Seed
+ City Arcade and party chat on 2026-10-21 (sections 15c-15f).
+================================================================================
+
+This file explains what Seed City is, how it was built, how the code is laid
+out, and what to know before changing it. It is written for future-you or for
+whoever (human or AI) picks the project up next. It covers the original
+build session (first prototype to 3D sound), the second session (VR
+rain, two rounds of audio performance fixes, lighter day/dusk fog) and the
+third (desktop only: new player car, banked turning, online Dogfight).
+
+
+--------------------------------------------------------------------------------
+ 1. QUICK FACTS
+--------------------------------------------------------------------------------
+
+ Repository     github.com/bootleg714/seed-city   (public, branch: main)
+ Play: desktop  https://bootleg714.github.io/seed-city/desktop.html
+ Play: Cycles   https://bootleg714.github.io/seed-city/cycles/
+ Play: Sumo     https://bootleg714.github.io/seed-city/sumo/
+ Play: Arcade   https://bootleg714.github.io/seed-city/arcade/
+                (party lobby: friends join one code and move between games)
+ Play: VR       https://bootleg714.github.io/seed-city/
+                (open in the Quest browser, press "Enter VR")
+ Hosting        GitHub Pages, deploy from branch main, folder / (root)
+ Tech           Plain HTML + JavaScript in single files, three.js r128 loaded
+                from cdnjs, WebGL + WebXR + Web Audio. No build step, no
+                server, no assets: every model, texture, sound and note of
+                music is generated in code.
+ Size           index.html (VR) ~179 KB / 3,188 lines
+                desktop.html     ~163 KB / 2,905 lines
+ Default seed   2611
+
+ There is also a private copy of the desktop build as a Claude artifact
+ ("Seed City"). That was the original workbench while the game was built.
+ The owner set it to private; the GitHub desktop.html link is the one to
+ share. In the first session each change was applied to all three
+ copies. The second session changed only the GitHub files, so the private
+ artifact is now behind (no menu Weather/Time, no audio fixes, old fog).
+ Treat GitHub as the source of truth.
+
+
+--------------------------------------------------------------------------------
+ 2. HOW THE PROJECT CAME ABOUT (unorthodox start)
+--------------------------------------------------------------------------------
+
+ It started from a post on X showing "Gigacity" (sael.net/gigacity), a
+ procedural endless city running in a browser on WebGPU, credited as
+ "100% code by Opus 5.5". The owner shared four screenshots and asked how it
+ was possible. The explanation (seeded hashing, chunked streaming, shader-
+ painted windows, GPU instancing, math-only traffic, fog and bloom) turned
+ into "can you build a small version?", which grew step by step into a game.
+
+ Order of work, roughly:
+   1. Endless seeded city fly-through (Claude artifact, WebGL/three.js)
+   2. Shaped flying cars, neon signs, autopilot that turns at intersections
+   3. Free-fly camera with collisions, then third-person chase view
+   4. Lasers with sparks and car explosions; detailed player car
+   5. HDR rendering + bloom, floodlights, searchlights, light pools
+   6. Live reflections on the player car (cube camera)
+   7. Landmark towers (HDR light treatments), tuned by owner feedback
+   8. Rain: streaks, wet-street mirror reflections, lightning, wet car
+   9. Asked if a Quest 2 game was possible -> WebXR build on GitHub Pages
+  10. VR controls, interior cockpit, chase and float views
+  11. Main menu over the live city; Races; then Courier; then Combat
+  12. Overlay guide arrow, cockpit dash tweaks
+  13. Procedural music + volume control
+  14. Bigger bloom (sun/moon excluded), lighter fog with seamless horizon
+  15. 3D positional sound (HRTF), strongest in VR
+ Second session:
+  16. Light rain in VR (faked wet street, windshield drops), Weather and
+      Time items in the menu
+  17. Audio crackle fix, round 1: pooled panners, voices freed, limiter
+  18. Audio crackle fix, round 2: no automated positions, 30 Hz updates,
+      cheap panners for lasers/booms, caps on drones and explosions
+  19. Thinner day/dusk fog in both builds, far fade in VR
+ Third session (desktop only; the owner was editing the VR build):
+  20. New player car: faceted silver wedge, wheels folded flat under it
+      as glowing thrust discs; widened in steps to CAR_W 1.32
+  21. Banked turning: the car leans into turns instead of away
+  22. Online Dogfight: peer-to-peer rooms with codes, 5-sphere hitboxes,
+      shields, respawns; a Room Open screen; 15% traffic and glowing
+      opponents during a match; effects off on phones during a match
+  23. Safety nets for frame time, runaway flight and audio errors
+
+
+--------------------------------------------------------------------------------
+ 3. FILES AND BUILDS
+--------------------------------------------------------------------------------
+
+ desktop.html   FULL build for PC browsers. Every effect: HDR + 7-level bloom,
+                rain with mirror reflections, player-car cube-map reflections,
+                wet car, fog slider, glow slider, chase/cockpit views.
+
+ index.html     VR build, tuned for Quest 2. Same city, menu, modes, music and
+                3D sound, plus WebXR, controllers, cockpit and overlays. It
+                drops expensive effects to hold frame rate (see section 9).
+                On a PC with no headset it runs as a flat preview with a
+                controls list.
+
+ README.md      Player-facing description, controls, recovery tips.
+ HANDOFF.txt    This file.
+ .nojekyll      Tells GitHub Pages to serve files as-is.
+
+ The two HTML files share most code but are NOT generated from a common
+ source; they are separate files that received the same patches. When you
+ change shared behaviour, change it in both. (A future cleanup could split
+ shared code into .js modules; see the backlog.)
+
+
+--------------------------------------------------------------------------------
+ 4. CODE LAYOUT (inside each HTML file)
+--------------------------------------------------------------------------------
+
+ <style>      HUD, controls panel, menu overlay, race HUD (tokens on :root)
+ <body>       canvas, HUD (title, stats), controls panel, menu overlay,
+              race HUD, key hints, VR button/notes (index.html only)
+ <script>     three.js r128 from cdnjs, then ONE inline script wrapped in an
+              IIFE. Rough order inside it:
+
+   renderer + HDR capability check (hdrOK)
+   constants: CELL=50 m block (incl. 10 m road), CN blocks per chunk, R radius
+   hh()  integer hash  ->  the whole city derives from hh(SEED, a, b, c)
+   PRESETS (day / dusk / night) -> uniforms (KEYMAP), lerped on change
+   GLSL: COMMON (fog, tonemap), sky, ground, buildings, cars, glows,
+         beacons, rings, signs, beams/lamps/pools, rain, bolts, particles
+   car geometry (traffic + detailed player car), player headlight beams
+   procedural lots: tower(), genLot()  (heights, tiers, signs, beams,
+         beacons, rings, landmark styles)
+   buildChunk(): instanced meshes for buildings, signs, beams, traffic
+   chunk streaming: updateChunks()
+   camera modes, autopilot path, fly physics, collisions
+   lasers, sparks, explosions, SFX
+   rain, wet-street reflection camera, lightning
+   post-processing: HDR target, bloom chain, composite
+   UI wiring (panel, keys)
+   [VR only] controllers, vrStep(), cockpit, views, reticle, Enter VR
+   game modes: menu, races, courier, music, combat, 3D sound
+   frame loop (renderer.setAnimationLoop in VR build; rAF on desktop)
+
+
+--------------------------------------------------------------------------------
+ 5. THE PROCEDURAL CITY
+--------------------------------------------------------------------------------
+
+ Determinism. Everything comes from hh(SEED, x, z, salt). Same seed, same
+ city, always. Changing the seed grows a different city. Nothing is stored.
+
+ Chunks. The world is a grid of 50 m blocks grouped into chunks
+ (desktop: 8x8 blocks = 400 m, radius 3 -> 7x7 chunks; VR: 12x12 = 600 m,
+ radius 1 -> 3x3). Chunks are generated ahead of the camera (prioritised in
+ the heading direction) and disposed behind it, so the city never ends.
+
+ Lots. district() noise sets density. genLot() picks: plaza (5%), four small
+ buildings, or one tower. tower() stacks 1-3 tiers with setbacks, adds
+ rooftop beacons (>110 m), antennas + halo rings on supertalls (>260 m),
+ neon signs (flush or blade), floodlights, rooftop searchlights, and maybe a
+ landmark treatment. Each box is an instance: position, size, seed, style.
+
+ Windows are not geometry. The building fragment shader divides each wall
+ into floors and window cells, hashes each cell for lit/unlit and colour,
+ adds shopfronts at street level, and fades to an average at distance to
+ avoid shimmer. Neon sign lettering is drawn the same way.
+
+ Landmarks (style >= 3 encodes the type). Ribbon 45% (light line at every
+ floor + uplight; owner's favourite), edge-lit 25% (corner strips + climbing
+ rings), crown 22% (glowing tier tops), LED screen band 8% (two-tone band,
+ not full skin; full rainbow skins were judged too loud and too common).
+ About half of supertalls get one; more downtown.
+
+ Traffic lives on the GPU. Each car is a lane (axis, coordinate, offset,
+ speed) plus per-car data. Its position each frame is
+     along = (offset + dir * speed * time) mod chunkLength
+ computed in the vertex shader. ~17k cars on desktop, ~3k in VR. Ground and
+ flying lanes; flying cars bob. Destroyed cars are hidden by setting their
+ traffic threshold above 1 in the instance buffer. Any CPU code that needs a
+ car position (laser hits, 3D sound) recomputes it with the same formula.
+
+ Pads, rings and roofs. Race courses walk the road grid so rings always sit
+ over open street. Courier pads call genLot() for a block and use the top of
+ its tallest box, so pads sit exactly on the rendered roof.
+
+
+--------------------------------------------------------------------------------
+ 6. RENDERING
+--------------------------------------------------------------------------------
+
+ HDR (desktop). The scene renders into a half-float multisampled target, so
+ lights can exceed 1.0 ("brighter than white"). Final composite tone-maps
+ with 1 - exp(-c), adds a slight vignette and dither. Shaders call tonemap(),
+ which is a pass-through in HDR mode and a real tone map when HDR is off.
+
+ Bloom (desktop). Dual-filter chain, 7 levels (was 5). First downsample
+ applies a soft threshold (1.0). Upsample taps are stretched by
+ glowRadius() and wider levels weighted by glowSpread(); glowGain() scales
+ the result. All three follow the Glow size slider (default 60%).
+ SKY EXCEPTION: the sky writes alpha 0 into the HDR buffer. The prefilter
+ uses the original threshold (1.2) for those pixels and scales them by
+ skyGlowK() so the sun and moon keep their original glow at any slider
+ setting. (Owner request: bigger glow on everything except sun and moon.)
+
+ Fog. fogAmt() = exponential-ish fog x uFogDensity (per time of day) x
+ uFogScale (Fog slider, default 70% of original) x (1 + 0.6 x rain), lighter
+ with height. A separate smoothstep toward the fog colour between ~945 and
+ 1180 m (uFogFar) ALWAYS hides the edge of the generated city, so lowering
+ fog never reveals chunk edges. VR keeps its own denser fog, with its
+ own far fade at 470-590 m (its 3x3 chunks always reach >= 600 m).
+ Day/dusk fog densities were lowered in both builds (bright haze reads
+ much thicker than the same amount of dark night fog); night unchanged.
+ Current presets: VR day .0012 dusk .0016 night .0029; desktop day .0011
+ dusk .0014 night .0021 (desktop then x Fog slider, default 0.7).
+
+ Lighting extras: wall floodlights with ground light pools, sweeping
+ rooftop searchlights, beacons, player headlight cones (additive cone
+ meshes, fresnel-faded). Landmark and neon colours are pushed into HDR.
+
+ Player-car reflections (desktop). A 128 px cube camera at the car renders
+ 2 faces per frame (full refresh every 3 frames), mipmapped; the car shader
+ mixes a tinted metallic base and a Fresnel clear coat. Only runs in chase
+ view. Toggle: Lighting > Reflections (also the biggest frame-rate saver).
+
+ Rain (desktop). 22k GPU-animated streaks in a box around the camera; storm
+ sky, no stars, lightning flashes with thunder. Wet streets: the city is
+ rendered from a camera mirrored under the road at half resolution, sampled
+ by the ground shader with vertical streak blur, puddle noise and ripple
+ rings. Wet player car: darker paint, sharp clear coat, water beads (each a
+ tiny curved mirror into the cube map) and sliding drips.
+
+
+--------------------------------------------------------------------------------
+ 7. FLIGHT, CAMERAS, COMBAT BASICS
+--------------------------------------------------------------------------------
+
+ Camera modes (desktop): Street, Drone, Sky (autopilot following roads and
+ turning at intersections, never leaves the road grid) and Fly (manual).
+ Fly views: Chase (third person, camera pulls in if a wall is in the way)
+ and Cockpit.
+
+ Player car (desktop, since the third session): an original faceted
+ silver wedge with full-width light bars front and rear; its four wheels
+ are folded flat underneath and fly on glowing thrust discs (part 3).
+ Built in playerGeo from shapedBox pieces plus wheelGeo() cylinders.
+ Body pieces are wrapped in wide(), which scales width by CAR_W (1.32);
+ wheels sit at z +-0.74, recessed so the tyre tops are inside the hull.
+ Headlight beams start in the nose bar (2.62, -0.02, +-1.0).
+ Banking: fly.roll (> 0 = banked right) follows the smoothed yaw rate
+ (keys or mouse) plus strafe input, max ~34 degrees; the car rolls by
+ fly.roll, the chase camera by -0.25x, the cockpit view by -0.5x. The VR
+ build still has the original jet-style car (owner was working on VR).
+
+ Fly physics: thrust along view direction, drag, boost x2.5. Collisions:
+ sphere vs building boxes from a per-chunk spatial index (cells map),
+ sub-stepped at high speed, reflective bounce with shake + red flash +
+ bump counter. segBoxes(a, b, margin) is the shared segment-vs-buildings
+ test (used by lasers, chase camera clearance, drone line of sight).
+
+ Lasers: alternating left/right bolts from the nose at ~9/s, speed 420 m/s.
+ Hit buildings -> sparks; hit cars -> fireball, car removed until its chunk
+ regenerates. Particles are a 1500-point pool with additive sprites.
+
+
+--------------------------------------------------------------------------------
+ 8. GAME MODES
+--------------------------------------------------------------------------------
+
+ Menu. Floats over the live city on load and after each mode (B in VR,
+ Esc on desktop). menuModel() describes the current page once; it is drawn
+ as an HTML overlay on flat screens and as a canvas texture panel in VR
+ (pointer raycast + trigger). Items: Free Flight, Races, Combat, Courier,
+ New city, Music, Weather (clear/rain), Time (day/dusk/night).
+
+ Races. makeCourse(k) walks the road grid from a seeded intersection: 10
+ rings, altitude 14-84 m, turns of 2-4 blocks. 3-2-1 countdown with beeps,
+ next ring amber, following ring cyan, finish green, chime per gate, timer,
+ results with "new record". 3 courses per seed. Best time per seed+course.
+
+ Courier. 90 s shift. Cyan column = pickup, amber = drop-off. Land on a
+ rooftop pad: horizontal distance < pad radius + 1.5, 0.3-10 m above roof,
+ speed < 10 m/s, hold 0.6 s. Pay: 100 + 12 per second of bonus left (50 if
+ late). Each delivery +12 s. Bumps with cargo -5. Best shift per seed.
+
+ Combat. Waves of interceptor drones (dark octahedron, spinning red ring,
+ eye). Wave n: min(2+n, 10) drones, speed min(22+3n, 46), fire interval
+ max(1.4, 3.8-0.3n) s. Drones orbit at 38-73 m, climb over buildings, fire
+ red bolts at 120 m/s that lead your motion; buildings block them. Shield
+ -14 per hit, regen after 3 s, shot down at 0. Clearing a wave: +250 x wave
+ and +30 shield. Kill: 100 x wave. Player bolts get a slight aim assist
+ (within ~6 degrees). Best score per seed. Owner was happy with balance.
+
+ Dogfight (desktop only, third session). Online multiplayer, peer to
+ peer. Code: the "Dogfight" block just before the 3D sound section.
+   Network: PeerJS 1.5.4, loaded from jsdelivr only when Dogfight is
+   opened. The host registers id "seedcity-df-<CODE>" (4 chars, no 0/O/1/I)
+   on the free PeerJS cloud server, which only does matchmaking; data then
+   flows over WebRTC data channels (reliable, JSON). PeerJS's defaults
+   include STUN and TURN servers for awkward networks.
+   Topology: star. Joiners connect only to the host; the host forwards
+   every message to the others and overwrites the sender id (no spoofing).
+   Messages: hello -> welcome {id, seed, host pos, roster, kills, deaths};
+   join / leave; st (position, yaw/pitch/roll, velocity, dead flag, 20/s);
+   fire (visual only); hit {to, dmg, point}; dead {id, by}; full.
+   Hosting first shows a "ROOM OPEN" menu page (big code, Copy invite link,
+   Start flying); a pilot joining while the host is on it launches the
+   host automatically, since joiners time out without the host's updates.
+   Sync: the host's seed only; joiners regenerate the city. Time of day,
+   weather and traffic are local (traffic is not synced).
+   Remote cars: player geometry in the pilot's colour (p0 Cyan, p1 Amber,
+   Magenta, Lime, Violet, Red), drawn MP_DELAY = 0.1 s in the past,
+   interpolated between snapshots, coasting up to 0.25 s if late.
+   Hits: shooter-authoritative. Your bolts test the 5-sphere HITBOX (nose,
+   middle, tail, both flanks, in car space) of the cars you see; the victim
+   owns its shield (12 damage per hit, regen 8/s after 3 s), announces its
+   own death, respawns after 3 s near the nearest pilot with 2 s grace.
+   During a match: traffic drops to 15% (setTraffic) and, on phones and
+   tablets (IS_MOBILE: user agent / touch Mac), bloom, reflections,
+   beams and rain are switched off (setLight / setWeather); mpFxOff()
+   in mpLeave restores the player's own settings. Other pilots' cars carry
+   an additive glow sprite in their colour (constant screen size, softer
+   within ~100 m), parented to the car so it hides when they're down.
+   Links silent for 6 s count as gone. N and the seed box are disabled
+   during a match. Not in VR yet.
+   Testing without internet: test copies inject a PeerJS stand-in
+   (window.Peer over BroadcastChannel, same API, 60 ms fake latency) and
+   are served from localhost so several tabs share it. This sandbox draws
+   the game at ~1 fps, so test copies also shrink the world (R = 1), cut
+   traffic, and raise MP_TIMEOUT. A 20-check script covered host, join,
+   seed sync, positions, hits, kill credit, respawn, a third pilot via the
+   relay, leaving, a wrong code and the host quitting. The real PeerJS
+   connection could not be reached from the sandbox: first tested by the
+   owner on real machines.
+
+ Guide arrow. A flat 3D arrow in the overlay (always on top), upper middle
+ of the view, pointing at the target. Desktop: locked to the view. VR: lives
+ in the rig (moves with you exactly) with light smoothing on head turns
+ only. Cyan for pickups, amber for drop-offs and rings, red in combat.
+
+
+--------------------------------------------------------------------------------
+ 9. VR IMPLEMENTATION (index.html)
+--------------------------------------------------------------------------------
+
+ Why WebXR and GitHub Pages: the Quest browser supports WebXR, three.js
+ renders into it directly, and Pages provides the HTTPS WebXR requires.
+ Claude artifact pages run in a locked frame that cannot enter VR, which is
+ why the VR build lives on GitHub.
+
+ Performance choices for Quest 2 (dropped frames cause nausea):
+   - No HDR/post-processing (hdrOK forced false), so no bloom
+   - Light rain only: 7k streaks in a 60x40x60 m box (desktop 22k in
+     90x60x90), no wet-street mirror pass. The ground shader fakes the
+     wet look from reflected sky/fog colour, lamp glare and light smears
+     stretched toward the viewer. No car cube-map reflections; the car
+     shader darkens paint and adds a sky-tinted coat instead.
+   - Smaller world: radius-1 chunks of 600 m, closer fog, ~3 traffic lanes
+     per road direction instead of 5/6
+   - Fixed foveation on, camera far plane 3000 m
+
+ Rig. The camera sits inside a "rig" group positioned at the car each
+ frame and rotated by vrYaw. Turning pivots around the head (not the car
+ origin) in cockpit/float views and around the car in chase view.
+
+ Controls (vrStep):
+   Left stick ........ fly forward/back/strafe
+   Left trigger ...... boost x2
+   Right stick X ..... smooth turn (squared curve, eased) — was snap turn
+   Right stick Y ..... climb / dive
+   Right trigger ..... fire straight ahead from the car's guns (not where
+                       the hand points; owner preferred this)
+   A ................. cycle time of day (also Time in the menu;
+                       rain is switched with Weather in the menu)
+   B ................. back to menu
+   X ................. light beams on/off
+   Y ................. cycle view: Interior -> Chase -> Float
+   In menus .......... point a controller, pull trigger (pointer line shown)
+ Haptics on firing, hits, kills and bumps.
+
+ Views:
+   Interior  Enclosed cockpit built from boxes: windshield pillars, roof
+             with dome light, door panels to the floor with amber accent
+             strips, floor, firewall, seat with bolsters/headrest, rear
+             bench, rear wall with framed back window. Dash speed screen is
+             a live canvas (km/h, altitude, turbo, hits, scrolling compass)
+             set FLUSH into the front dash panel under the amber light strip
+             (moved there for visibility). Interior brightness follows time
+             of day and lightning. When it rains, a windshield quad shows
+             beads that crawl down when hovering and stream up the glass
+             with forward speed (uAir, uWsPhase); drops within 1.4 m of
+             the head are faded out (uRainNear) so none fall inside.
+   Chase     Third person behind/above the car; clearLine() pulls the camera
+             in when a building is in the way.
+   Float     No car at all: drifting through the city first person, smaller
+             collision radius. (Replaced the earlier canopy-less view.)
+ Aiming ring 45 m ahead of the nose in every view. Race/shift/combat
+ readout is a floating canvas panel; the arrow sits just above it.
+
+
+--------------------------------------------------------------------------------
+ 10. AUDIO
+--------------------------------------------------------------------------------
+
+ All audio is synthesized with Web Audio; there are no sound files. Audio
+ starts after the first click or on entering VR (browser rule).
+
+ SFX: laser zap (saw sweep), explosion (filtered noise), gate chime,
+ countdown beeps, finish fanfare, courier pickup/cash/late, combat wave,
+ hurt, enemy shot, rain hiss, thunder.
+
+ Music (procedural, seeded). seedMusic() picks a minor key, one of six
+ chord progressions, and 88-106 BPM from the seed (seed 2611: D minor,
+ 91 BPM). Layers: detuned saw pads through a moving low-pass, triangle bass,
+ bell notes, all into a generated 4.5 s convolution reverb. A "drive" layer
+ (16th-note arpeggio, soft kick, offbeat hats) fades in during Races,
+ Courier and Combat. Scheduled with a look-ahead timer; never loops.
+ Volume: Music volume slider (desktop, default 60%), VR menu cycles
+ High/Medium/Low/Off, M toggles on desktop. Levels were checked by offline
+ rendering: ~-28 dB RMS ambient, peaks well below clipping.
+
+ 3D sound (HRTF). The Web Audio listener follows the camera (the headset in
+ VR). Positions of the listener and moving voices are set as plain .value
+ about 30 times a second (posTick), never with setTargetAtTime (see
+ section 14 for why). One-shots borrow panners from fixed pools via
+ spatialDest(pos, ref, roll, cheap): 6 HRTF (zips, enemy shots) and 10
+ equal-power (lasers, explosions, roof ticks). All SFX pass a limiter
+ (sfxOut()); music has its own compressor. Pieces:
+   - 5 traffic voices assigned to the nearest cars (recomputed with the GPU
+     formula every 0.12 s, extrapolated between scans), noise + engine hum,
+     doppler on pitch/filter; flying cars whine, street cars rumble
+   - lasers from the left/right guns, explosions where they happen
+   - combat drones hum from their positions (max 4 voices; a voice is
+     stopped and disconnected 0.4 s after its drone dies); enemy bolts
+     "zip" when they pass within 12 m of your head
+   - at most 3 explosion sounds start within 0.25 s (visuals unaffected)
+   - a siren travels along a road somewhere every 25-60 s
+   - rain drumming on the cockpit roof with spatial droplets (desktop
+     cockpit view or VR interior view while raining)
+ Measured: tone 6 m right ~5 dB louder in the right ear, balanced behind,
+ ~20 dB quieter at 60 m than at 6 m.
+
+
+--------------------------------------------------------------------------------
+ 11. SAVED SETTINGS (localStorage, per browser)
+--------------------------------------------------------------------------------
+
+ seedcity.best.<seed>.<course>   race best times
+ seedcity.courier.<seed>         best courier shift
+ seedcity.combat.<seed>          best combat score
+ seedcity.music                  on/off
+ seedcity.musicvol               0..1
+ seedcity.glow                   0..1   (desktop)
+ seedcity.fog                    0..1   (desktop)
+
+ Headset and PC keep separate records and settings.
+
+
+--------------------------------------------------------------------------------
+ 12. DESKTOP CONTROLS
+--------------------------------------------------------------------------------
+
+ 1/2/3/4 camera (Street/Drone/Sky/Fly)   W A S D fly   E/Q up/down
+ Shift boost   drag or arrows steer   Space fire (pause outside Fly)
+ P pause   C chase/cockpit   R rain   N new city   M music   Esc menu
+ Game controller (desktop, third session): browser Gamepad API, polled
+ once a frame by gpUpdate() (skipped while in VR). Prefers a pad with the
+ "standard" mapping. Flying: left stick move (radial deadzone 0.15),
+ right stick yaw/pitch (deadzone 0.12, squared curve), RT > 0.3 fire,
+ LT > 0.4 or left-stick click boost, RB/LB or d-pad up/down climb/dive,
+ Y view, Start menu. Analog values are added to the keyboard's in
+ flyStep and clamped to +-1. Menus (gpMenu): d-pad/stick moves a .gp
+ highlight to the nearest button in that direction on screen, A clicks,
+ B clicks Back/Main menu/Cancel. Rumble through vibrationActuator
+ ('dual-rumble'): cbBuzz (combat), dogfight hits taken/landed and deaths,
+ crashes, nearby traffic explosions, light buzz while firing. Hints in
+ the key bar switch to controller buttons and the phone touch pads hide
+ once a controller is seen (gpOn). Tested with a simulated pad (18 checks).
+ Panel: seed, camera, fly view, sound, time of day, weather, lighting
+ toggles (bloom, beams, reflections), traffic, flight speed, music volume,
+ fog, glow size.
+
+
+--------------------------------------------------------------------------------
+ 13. HOW THINGS WERE TESTED (useful to repeat)
+--------------------------------------------------------------------------------
+
+ There was no GPU or headset in the build environment, so:
+   - Headless Chromium + SwiftShader (software WebGL) ran the real pages.
+   - three.js r128 was fetched by sparse-cloning mrdoob/three.js at tag
+     r128 (CDNs were blocked in the sandbox), and test copies pointed at it.
+   - Each feature was driven through small test hooks (window.__x objects
+     injected into test copies only, never shipped) and checked with
+     screenshots and numbers: ring placement vs building boxes, full race /
+     courier / combat runs, arrow distance at speed, halo brightness around
+     the sun, fog horizon at 0%, music loudness via OfflineAudioContext,
+     left/right ear levels via analysers.
+   - VR was simulated by forcing the frame loop down the VR path and
+     posing the camera; real comfort and feel were judged by the owner on a
+     Quest 2.
+ Quirks found: SwiftShader is slow (20-30 fps), so tests teleport rather
+ than fly; headless Chrome's audio clock runs ~5x faster than real time, so
+ test tones must be long.
+
+ Added in the second session:
+   - Playwright's Chromium was preinstalled (/opt/pw-browsers); launch it
+     with --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader.
+   - Forcing the VR path without a headset: renderer.xr.enabled = false,
+     renderer.xr.isPresenting = true, then startVR(). The frame loop runs
+     vrStep and the cockpit; set vrView / vrYaw / fly.pos via a test hook.
+   - Audio leaks: wrap AudioContext.prototype.createPanner in a counter
+     before the page loads, then fire hundreds of zaps/booms/zips.
+   - Audio cost: build the scene's node graph in an OfflineAudioContext and
+     time startRendering(); ctx.suspend(t).then(update; resume) simulates
+     per-frame position updates. Compare against a no-update baseline,
+     since suspends add their own overhead.
+   - Game time crawls at SwiftShader frame rates (dt is capped at 0.05),
+     so poll for game state (e.g. drones active) instead of fixed waits,
+     and time audio cleanup on actx.currentTime, not frame dt.
+
+
+--------------------------------------------------------------------------------
+ 14. BUGS FIXED / LESSONS (things that bit once)
+--------------------------------------------------------------------------------
+
+ - Half the traffic drove backwards (oncoming lanes mirrored, not rotated).
+   Fixed by rotating 180 degrees per direction in the vertex shader.
+ - On GitHub Pages the "WebGL failed" message showed over a working city:
+   the artifact skeleton supplied [hidden]{display:none!important}, the
+   standalone page did not. Added it to the standalone pages.
+ - The menu/races first existed only in the VR build; the desktop build
+   was patched to match. Keep both files in sync.
+ - Dash speed screen was half buried in the sloped dash top; now flush in
+   the front panel.
+ - Guide arrow: world-placed versions were hidden when looking down; then a
+   smoothed VR version lagged behind when accelerating. Final: overlay
+   arrow parented to the rig, smoothing only for head turns.
+ - Bigger bloom made the sun/moon blow out; solved with the sky alpha tag.
+ - Thinner fog would expose the chunk edge; solved with the far fade.
+ - Menu panel in VR overlapped the dash screen; raised it.
+ - Name clash: a particle buffer shadowed the car "partGeo" helper.
+ - Audio crackled and cut out after many combat kills (worst on Quest).
+   Every one-shot sound made its own HRTF panner and never released it:
+   a heavy fight created ~1,000. Now one-shots borrow from a pool of 12
+   HRTF panners (oldest first; roof rain ticks use 4 cheap equal-power
+   ones), drone hums and sirens are stopped and disconnected when done,
+   and all SFX go through a limiter (sfxOut) so stacked explosions can't
+   clip. Rule: never call createPanner() per sound.
+   Round two (crackle still came with explosion bursts): Chrome puts any
+   panner whose position (or the listener's) is automated onto a costly
+   per-sample path, and a listener change recomputes every panner. Old
+   code used setTargetAtTime for listener + voices every frame. Now:
+   plain .value updates at ~30 Hz (posTick), lasers/booms on cheap
+   equal-power panners, max 4 drone hums, max 3 booms per 0.25 s, drone
+   wobble on volume/pitch instead of an audio-rate filter sweep, traffic
+   filters set with plain values. Offline benchmark of a heavy fight:
+   ~44% of real time before, ~11% after. Rules: no setTargetAtTime on
+   positions or biquad frequencies; no audio-rate modulation of filters.
+ - Third session: in one multi-window test a host's altitude ran away to
+   ~3e41 m, and the resulting non-finite numbers reached the audio engine
+   and threw inside the frame loop (which stops the loop: frame() calls
+   requestAnimationFrame at its end). Not reproduced in later runs; cause
+   unknown. Defences added: frame dt clamped to >= 0, flight speed capped
+   at 400 m/s, non-finite or > 3000 m positions snap back to flySafe,
+   non-finite audio values are skipped, and audio3dUpdate runs inside
+   try/catch so sound can never stop the game.
+ - VR menu panel's renderOrder/visible/frustumCulled settings had ended up
+   inside a // comment, so they never ran. Fixed when rain arrived in VR
+   (otherwise transparent rain could draw over the menu).
+
+ Owner preferences learned along the way:
+   lasers fire straight ahead, not hand-aimed; smooth turning over snap;
+   ribbon-style landmarks over loud full-skin screens; music a notch quieter;
+   bigger glow but natural sun/moon; less fog; HUD info at the top of view.
+   Second session: liked the VR rain; happy that the Quest build looks
+   different from PC ("looks really cool for an Oculus 2") as long as it
+   runs smoothly. Real-device feedback comes from the owner's Quest 2.
+
+
+--------------------------------------------------------------------------------
+ 15. WORKFLOW AND RECOVERY
+--------------------------------------------------------------------------------
+
+ Every change was committed with a descriptive message and pushed to main;
+ Pages redeploys in 1-2 minutes. To get an old version back:
+   - GitHub > Commits > open a commit > Browse files > file > Raw, or
+   - git revert <commit-id>   (adds an undo commit; history stays intact)
+ Avoid git push --force and git reset --hard.
+
+ Commit history from the session:
+   f0c230e  Add Seed City desktop build
+   f2c5441  Add Seed City VR build for Meta Quest
+   a27dba9  VR: smooth turning and straight-ahead lasers
+   4d30ef0  VR: interior cockpit, chase view, and Y to switch views
+   1b68204  VR cockpit: full cabin and a dash screen that sits on the dash
+   f0d5e8b  VR: replace the open-cockpit view with a carless float view
+   369f96b  Add main menu over the live city and checkpoint races
+   9b89a90  Desktop build: add the main menu and checkpoint races
+   995bc22  Add Courier mode: rooftop deliveries against a shift clock
+   692a090  Move the guide arrow out of the line of sight
+   5067e32  Guide arrow is now part of the view overlay
+   aca9a9f  VR: guide arrow no longer falls behind when accelerating
+   a315954  VR cockpit: speed screen flush in the dash front panel
+   084d9a9  Add a procedural ambient soundtrack grown from the seed
+   bb872a6  Music: lower default level and add a volume control
+   b2090af  Add Combat mode: drone waves that fight back
+   f2b2821  Desktop: bigger bloom, plus a Glow size slider
+   5ae2832  Bloom: keep the sun and moon at their original glow
+   3b682c9  Desktop: lighter default fog, Fog slider, seamless far edge
+   f828f80  Add 3D positional sound
+   a7d54da  Add HANDOFF.txt: full project handoff notes
+ Second session:
+   016b0e2  VR: light rain with a faked wet street and windshield drops
+   31c7fe4  Fix audio crackle and dropouts after many combat kills
+   be25f69  Cut audio load so explosion bursts no longer crackle
+   68a8bad  Thinner fog in daytime and at dusk
+   72d420d  Update HANDOFF.txt with the second session
+ Third session:
+   25e125c  Desktop: new player car with fold-under hover wheels
+   3d624de  Desktop car: wider body, wheels recessed and tucked inward
+   6e0c42b  Desktop car: widen the body a bit more (CAR_W 1.22)
+   a30edd8  Desktop: bank into turns, and widen the car one more notch
+   da23e99  Desktop: online Dogfight mode (peer to peer, room codes)
+   86dfc4e  Dogfight: show the room code before flying, plus safety nets
+   97243de  Dogfight: 15% traffic, glowing opponents, effects off on phones
+   (plus the commit that updates this handoff file)
+ Commits are authored as bootleg714 <bootleg714@users.noreply.github.com>:
+ GitHub rejects pushes that expose the owner's private email.
+ Features built before f0c230e (the city, cars, signs, flight, lasers,
+ HDR, reflections, landmarks, rain) were developed in the Claude artifact
+ and arrived in the first commit as a finished whole.
+
+
+--------------------------------------------------------------------------------
+ 15b. NEON CYCLES (cycles/index.html, started 2026-10-13)
+--------------------------------------------------------------------------------
+
+ A separate light-cycle game in one HTML file, same stack (three.js r128
+ from cdnjs, no build, no assets). Working title; the owner may rename it.
+ "Tron" and its bike design are kept out on purpose (Disney's).
+
+ Rules: 220 x 220 arena, 90-degree turns, every bike leaves a wall; touch
+ any wall and you're out (your walls dissolve). Last rider alive wins the
+ round, first to 5 rounds wins. Speed ramps +2.5%/s to +80% (S(t) is the
+ distance-travelled formula, used by owners and for remote prediction).
+
+ Architecture: one authority (solo player, or the online host) owns the
+ roster, rounds, scores and bots; every rider owns its bike (moves it,
+ decides its own crash). All state changes go through apply(msg) on every
+ peer; the authority uses emit() = apply + broadcast. Messages: roster,
+ round {n, spawns, scores}, turn {id, n, x, z, d, tr}, pos (6/s), crash,
+ roundEnd, matchEnd, plus hello/welcome/full/ping. Remote bikes are drawn
+ from their last turn/pos point along their heading (coast <= 1 s).
+ Networking is the Dogfight design: PeerJS, ids "neoncycles-<CODE>", star
+ with the host relaying and stamping sender ids; joiners mid-round watch
+ and ride next round; #room=CODE links auto-join.
+
+ Collision: walls are axis-aligned boxes (HIT_R 0.42); bikes test points
+ every 0.3 units; the corner just turned is ignored for 1.2 units. Bots
+ look ahead (freeDist) and turn toward the side with more room, plus
+ occasional cut-across turns.
+
+ Controls: A/D or arrows; controller d-pad, LB/RB or a stick flick; touch
+ buttons on phones; Esc/Start twice to leave. Menus are a vertical list
+ (d-pad up/down, A, B). Sound: synth engine hum (updated 10/s), turn
+ blips, crash noise, countdown beeps, win jingle.
+
+ Tested with the PeerJS stand-in (18 checks: walls, turns, rounds, bots,
+ lobby, bots online, turns both ways, score agreement, host leaving).
+ Fixed during testing: riders didn't record their bot flag, so bots were
+ never driven.
+
+ 2026-10-13, ported from Neon Cycles DC (the owner's Dreamcast port,
+ github.com/bootleg714/Neon-Cycles-DC, v0.3-v0.18; see its PATCH_*.txt):
+ - Arenas (DC v0.16/17): OPEN GRID, FOUR CORES, SPLIT GATES, CIRCUIT LANES
+   (ARENAS: [x, z, halfW, halfD] blocks, same numbers as DC game.c). Menu
+   and lobby picker: ROTATING (round n uses arena (n-1) % 4) or one arena
+   all match; saved in localStorage 'neoncycles-arena'. The authority puts
+   arena in the round message (also roster.arena = the host's choice for
+   the lobby, welcome.arena / welcome.sel for joiners). Barriers are dark
+   blocks, neon rim, glow bands above the rim and on the floor (DC v0.18:
+   never a glow face coplanar with a solid wall). Outer walls take the
+   arena colour. The DC spawn points are the same, so some spawns meet a
+   barrier early (Circuit Lanes crossbar ~14 units ahead).
+ - Collision now goes through 10-unit buckets (grid, gridAdd on every
+   turn, cleared each round), like DC game.c; crashed riders' entries are
+   skipped. hitAt also tests the arena's barriers.
+ - Bots (DC v0.15): planning map 44x44 (5 units), flood-fill space, exits
+   at 12/24/36 units, attack score for crossing a rival first, penalty for
+   head-on. Personality by colour BOT_ATTACK; lime also prefers space.
+   Think every 0.16-0.29 s, or at once when the way ahead is short.
+ - Spectator (DC v0.7/v0.14): after you crash the camera stays 1.5 s,
+   then follows a random survivor in a north-up overhead view; left/right
+   picks another, V/C (controller Y, touch VIEW) toggles overhead/chase.
+   camTarget() is the one place that decides who is followed (also the
+   audio listener). WATCHING label in #watch.
+ - Rear trail taper (DC v0.13): done in the trail shader. uB/uT/uP give
+   bike, last turn and the turn before; distance is measured along the
+   trail so the low band also follows a fresh corner. Starts 1.45 behind
+   the bike centre, full height after 3 more units.
+ - Crash: 260 sparks, a white flash and an expanding floor ring (boom()).
+ - Sound (DC v0.10): the DC version's supplied samples, rebuilt at 44.1 kHz
+   from its audio_sources/: sfx_turn.wav (pitch rises with speed),
+   sfx_crash.wav (volume by distance, panned), sfx_engine.wav (RUN_LOOP
+   1.8-3.8 s with a 30 ms crossfade). One looping engine per nearby bike,
+   panned, rate .85-1.25 with speed, updated 10/s (gain setTargetAtTime,
+   pan linear ramps). Synth sounds remain as the fallback if a file fails.
+ - Title music (DC v0.5): title_music.mp3, the owner's 60 s edit of
+   "Retro Color Moon" (meditativetiger, supplied by the owner). Plays on
+   the menus after the first click/key/button, stops when a match starts,
+   restarts from the intro.
+ - City (DC v0.3/v0.4): neon_city.png (1024x256, from the DC project) on a
+   ring of radius 520, repeated 8 times, plus 12 dark towers with neon
+   edges at 335-420. Title only (DC v0.11): circuit-board streets outside
+   the arena with lights running along them; the outer grid dims to 22%.
+ - Bike model (2026-10-13): an original neon sport bike with a crouched
+   rider replaced the hover-bike (makeBike). Spoked wheels with glowing
+   rims spin with speed (WHEEL_R 0.42, rear tyre ends 1.42 behind centre,
+   where the trail taper starts); no hover bob. The owner showed a Flow
+   image of the Tron: Legacy cycle as inspiration; its hubless shell
+   design is Disney's and was deliberately not copied.
+ - Bot difficulty (2026-10-19, asked for by the owner's family): DIFFS
+   EASY / NORMAL / HARD, menu picker under the bot count (also on the
+   results page and in the online lobby for the host; joiners see it).
+   Saved in localStorage 'neoncycles-diff', default NORMAL. The authority
+   sends diff in the round message (roundDiff; HUD shows "EASY BOTS").
+   EASY: no planning, 0.15 s reaction, 75% look-ahead, dodges the wrong
+   way 15% of the time, random wandering. NORMAL: the planner with 0.05 s
+   reaction, 90% look-ahead, 45% hunting, more randomness, 3% mistakes.
+   HARD: the full DC bot (what every match used before). Fast-forwarded
+   bot-only runs (open grid, 3 bots): average round incl. ~6 s of
+   countdown/results EASY 33 s (10 rounds), NORMAL 50 s, HARD 68 s.
+   Bike speed is the same at every level.
+ - Boost (2026-10-19): +70% speed for 1 s (BOOST_X, BOOST_T), recharge
+   5 s from the start (BOOST_CD), ready at GO. Space / W / Up, controller
+   A or RT, touch BOOST button between the turn buttons (it fills as it
+   recharges and glows when ready; desktop shows a bar above the hint).
+   travel(r, t0, t1) adds the boost window to S() so owners and remote
+   prediction agree; message boost {id, n, x, z, tr}, relayed for joiners.
+   Wider view (FOV +12) and exhaust sparks while boosting; engine pitch
+   x1.22. Bots: NORMAL 8% / HARD 20% chance per think on a straight with
+   45+ units clear; EASY never. Phones: the round pill moves right and
+   wraps so it no longer covers the scoreboard.
+ - Not ported: DC title logo (it says "DC"), the 8-view sprite bikes, the
+   hardware-only fixes (tile lists, font texture, wall flicker).
+
+--------------------------------------------------------------------------------
+ 15c. NEON SUMO (sumo/index.html, built 2026-10-21)
+--------------------------------------------------------------------------------
+
+ Bumper sumo on a shrinking neon platform, one HTML file (~78 KB, ~1,260
+ lines), same stack as Cycles (three.js r128 from cdnjs, PeerJS 1.5.4 from
+ jsDelivr, no build, no asset files: textures are canvas-drawn and every
+ sound is a small Web Audio synth). It reuses Neon Cycles' look (fonts,
+ colours, menu card, HUD) and its networking code almost line for line.
+
+ How it plays
+ - Roll (WASD / arrows / left stick / touch drag on the left 60% of the
+   screen), dash (Space or Shift / A or RT / DASH button), 1.5 s cooldown.
+ - Platform radius 14; shrinks from 6 s at 0.5/s to 5.5, holds 5 s, then a
+   sudden-death shrink to 0 so every round ends. First to 3 rounds wins.
+ - Ball centre past the edge (or into the Donut's hole) = falling; out once
+   it drops below y = -14. Last ball on the platform takes the round.
+ - Tuning constants sit at the top of the script: ACC 19, DRAG 1.7,
+   DASH 15, BOUNCE 1.3 (collisions add a little energy, on purpose),
+   GRAV 32. Bot-only rounds last ~12-35 s.
+
+ Netcode (the big difference from Cycles): balls push each other, so ONE
+ machine runs all the physics, the "authority" (solo player, or the host).
+ - Joiners send {t:'in', x, z, d} 20x/s: stick direction plus a dash
+   counter (a counter, not a flag, so a dash can't be lost).
+ - Host sends {t:'st', n, R, b:[[id,x,z,vx,vz,y,falling]...]} 20x/s.
+ - Joiners predict their own ball (same stepBall + collisions against
+   where the others appear) and blend toward the host: 25% position / 35%
+   velocity per snapshot, snap if more than 3 units off. Other balls are
+   drawn at snapshot + velocity*age (age capped 0.25 s), smoothed.
+ - Match events go through apply(msg) on every machine, emit() = apply +
+   broadcast (the Cycles pattern): roster, round {n, s, scores, a}, bump,
+   dash, out {id, by, left}, final, win, match, lobby, arena, pu, got, post.
+ - PeerJS ids "neonsumo-<CODE>". Fixed 60 Hz physics step (max 6 steps per
+   frame). Host tab in the background = rAF throttled = game stalls for
+   everyone (same as Cycles; not addressed).
+
+ Features added the same day, in order
+ 1. Knockout credit: every bump records lastHit {id, t}; a ball that starts
+    falling within 3 s of a hit credits that player (banks off posts count).
+    Feed top right ("AMBER knocked off LIME" / "fell off" / "left"), KO
+    column on the scoreboard, "Most knockouts" at match end, solo end
+    screen ranks wins then KOs.
+ 2. Slow-motion finish: when a fall leaves <= 1 ball standing, the host
+    emits 'final'; everyone runs at ~0.22x for 1.6 s (eases back over the
+    last 0.45 s) with the camera zooming to that ball and a deep boom.
+    Game time (gdt) drives physics, sparks, timers; real time drives input,
+    networking and the camera easing.
+ 3. Arenas: Classic, Donut (hole radius 2.8, magenta rim; floor is a
+    RingGeometry rebuilt when the inner fraction changes), Bumpers (4 posts
+    at radius 4.6, kick = full reflect + 6; they sink once the edge
+    reaches them, decided from R so every machine agrees). Arena button on
+    the menu and in the lobby: Mixed (one per round in turn, default),
+    Classic, Donut, Bumpers. Saved in localStorage 'neonsumo-arena'; the
+    host's pick is sent to joiners. Bots steer away from the hole.
+ 4. Power-ups: one pickup at a time, first at 5 s, next 8 s after each is
+    taken, placed near the middle (off the hole and away from posts),
+    removed if the edge reaches it. Heavy (violet cube): mass 3 for 5 s
+    (collide() uses inverse masses). Shockwave (cyan ring): instant blast
+    within 6.5 units, credits knockouts, joiners apply the kick to their
+    own ball locally so it feels instant. Grip (lime crystal): accel x1.8,
+    drag 4.2 for 5 s. Aura ring on the ball, timer above the dash bar,
+    feed line. Bots go for pickups when one is close.
+ 5. Experimental Backdrop (menu button, per device, 'neonsumo-backdrop'):
+    Void (default) or Neon city: ~1,000 instanced towers at y = -95 in a
+    block grid with lit-window textures (UVs scaled so windows stay ~2
+    units), neon rooftop rims (instanceColor), magenta street grid, 260
+    flying-traffic points, and a light beam under the platform. Built
+    lazily on first use. Nearby towers are kept short so the view stays
+    clear. Check phones; trim tower/traffic counts if it stutters.
+
+ Fixes along the way
+ - The Claude preview iframe forbids getGamepads(); it threw every frame
+   and stopped the arena drawing. gpGet() now try/catches once and stops
+   asking (gpBlocked). Short windows hide the controls hint.
+ - Players who close the tab are dropped right away (pagehide -> netLeave)
+   instead of after the 8 s ping timeout.
+
+ Solo preview: a private Claude artifact "Neon Sumo" holds a solo-only copy
+ (window.NEONSUMO_SOLO_ONLY hides online play, because artifact pages can't
+ open WebSockets/WebRTC). It was last updated with the city backdrop; it is
+ not needed for anything and can be retired.
+
+--------------------------------------------------------------------------------
+ 15d. SEED CITY ARCADE (arcade/index.html, built 2026-10-21)
+--------------------------------------------------------------------------------
+
+ A party lobby that moves a group between games on one code (~29 KB). No
+ three.js: the background is a 2D canvas neon grid with "electric pulses"
+ (up to 9, slow, ~2.5 s tails) that run down the grid lines and sometimes
+ turn onto a crossing line. Both are off with prefers-reduced-motion.
+
+ Flow
+ - Start a party (PeerJS id "seedarcade-<CODE>") or join by code / invite
+   link (arcade/#room=CODE). Front page also has solo links to both games.
+ - Host clicks a game card -> sends {t:'go', g}, saves the chat log to
+   sessionStorage, then after 400 ms goes to ../<game>/#host=CODE&arcade.
+   Joiners go to ../<game>/#room=CODE&arcade&wait.
+ - In the game, #host=CODE re-opens the SAME code (netHost(0, fixed); on
+   'unavailable-id' it retries every 1 s up to 8 times, the old id may take
+   a moment to free). #room with &wait makes joiners retry
+   'peer-unavailable' every 1.5 s up to 12 times while the host opens.
+ - Game lobbies show "Back to arcade" to the host when the page came from
+   the arcade (ARCADE flag); it sends {t:'arcade'} and everyone returns to
+   arcade/#host=CODE (host) or #room=CODE&wait (joiners).
+ - Hashes are cleared with history.replaceState after reading, so a reload
+   doesn't re-host or re-join.
+
+ Names and chat (added the same evening)
+ - "Your name" on the front page (16 chars, localStorage 'seedarcade-name'),
+   sent in hello; shown in the party list with YOU / HOST tags; "Player N"
+   if blank.
+ - Chat: joiners send {t:'say', x}; the host cleans it (plain text, control
+   chars stripped, 200 chars, 0.7 s cooldown per sender), stamps name and
+   colour, keeps a 60-message log and broadcasts {t:'chat', m}. Welcome
+   carries the last 40. Join/leave notices; no notices while 'going', and
+   none for 25 s after the host re-opens a party coming back from a game
+   (so the return isn't a wall of "joined"). The host restores the log
+   from sessionStorage on return. Rendered with textContent (no HTML).
+ - The party card refreshes only #pcopy, #proster and #pmain when the
+   roster changes; the chat box is never rebuilt (a rebuild could swallow
+   an Enter press mid-message).
+ - No mute or kick yet (owner chose to test without). Anyone with the code
+   can join and chat.
+
+--------------------------------------------------------------------------------
+ 15e. NEON CYCLES CHANGES (2026-10-21)
+--------------------------------------------------------------------------------
+
+ - Arcade hand-off: netHost(attempt, fixed), netJoin(code, attempt) with
+   ARCADE_WAIT retries, goArcade(), "Back to arcade" in the lobby, a link
+   to the arcade on the main menu, #host= / #room= read once then cleared.
+ - Title music: now started inside the click/key handler (musicUpdate(true)
+   on pointerdown, pointerup, keydown, touchend, click) and, if a browser
+   refuses (NotAllowedError), retried on the next real input instead of a
+   3 s timer. Important: Chrome/Edge still play nothing until the first
+   click or key on the page. That is the browser autoplay rule for every
+   site, not a bug; the owner decided not to add a "press any key" screen.
+   A controller button never counts as permission to play sound.
+
+--------------------------------------------------------------------------------
+ 15f. HOW 2026-10-21 WAS TESTED, AND LESSONS
+--------------------------------------------------------------------------------
+
+ - Headless Chromium (Playwright) in the Claude sandbox, files served by
+   python -m http.server. cdnjs is blocked there, so three.js r128 came
+   from a sparse git checkout of mrdoob/three.js (tag r128, build/
+   three.min.js) and requests were routed to it. Fonts were blocked.
+ - A PeerJS stand-in (window.Peer over BroadcastChannel, ~40 ms latency,
+   'peer-unavailable' after 1.5 s, short ping timeout) injected with
+   addInitScript, so several tabs could host and join. The real PeerJS
+   server was never reachable from the sandbox; the owner tested real play.
+ - Test hooks: window.__sumo (state, roster, scores, kos, arena, pickup,
+   riders(), fx(), setArena()) and window.__arcade (page, code, roster,
+   log, say). window.NEONSUMO_TEST_INPUT overrides the stick in tests.
+ - Suites at the end: Sumo 26 checks (solo rounds, knockouts, host/join by
+   link, prediction stays within 2.5 units of the host, scores and KOs
+   match, arena sync, drop on leave, wrong code), arena runs, power-ups
+   online, hub 16 checks (party -> Sumo -> arcade -> Cycles -> arcade ->
+   Sumo -> arcade), chat 13 checks. The scripts lived in the session's
+   scratchpad and were not committed; rebuild them from this description
+   if needed (or ask Claude to add a tests/ folder).
+ - GitHub Pages caches pages for up to ~10 minutes. After a push, test with
+   Ctrl+F5, or friends may still get the old version.
+ - Gotcha found by the tests: performance.now() starts at 0 when a page
+   loads, so a cooldown that starts at 0 drops anything sent in the first
+   0.7 s. Start "last time" values at -1e9.
+ - Gotcha: an autoplay check that only looks at user activation passes in
+   Chrome even when play() runs a frame later; Safari-style strictness
+   needs play() inside the handler. Tested by mocking play() to refuse
+   outside window.event.
+
+--------------------------------------------------------------------------------
+ 16. IDEAS BACKLOG (discussed, not built)
+--------------------------------------------------------------------------------
+
+ - Race against your ghost (replay of your best lap)
+ - Share a city by link (seed in the URL, e.g. desktop.html#2611)
+ - Daily city (date-derived seed); owner noted no daily audience, so low
+   priority
+ - Physical VR cockpit: grab a throttle, press dash buttons
+ - Snap-turn option for comfort (the smooth-turn code replaced it; the old
+   version is in commit f2c5441)
+ - Refactor: move shared code into .js modules so both builds load the
+   same source instead of being patched twice
+ - Bigger VR world (chunk radius 2) to see farther now that fog is
+   thinner; costs frame rate on Quest 2, so test carefully
+ - A controller shortcut for rain in VR (every button is taken; today it
+   is only in the menu)
+ - Bring the private Claude artifact copy up to date, or retire it
+ - NEXT (planned with the owner, 2026-10-12):
+   1. Port the third session's desktop work to VR: new car, banked
+      turning, Dogfight (owner was editing index.html; pull first).
+   2. DONE as v1: Neon Cycles in /cycles/ (see section 15b). Next ideas:
+      power-ups, boost, a link from Seed City's menu (arenas and music came
+      from the DC port).
+      (Originally planned as /tron/ :
+      Reuse the Dogfight networking (PeerJS star, room codes, relay).
+      Owner loved the arcade original; wants their own 3D style.
+   3. Later idea: small multiplayer FPS in a seeded mini city arena,
+      a few weapons (hitscan rifle, shotgun, rockets), deathmatch.
+ - NEXT (from 2026-10-21; nothing below is built):
+   Arcade / chat
+   - Host mute and kick in the party chat (owner skipped it for testing;
+     worth adding before codes are shared widely or with younger players).
+   - Carry arcade names into the games (scoreboards still say "Cyan",
+     "Amber"...); send the name in each game's hello.
+   - A third game card, so the arcade feels like an arcade (see below).
+   Neon Sumo
+   - More arenas: Tilting disc (tips toward the heavier side) and
+     Crumbling tiles (the edge falls away in chunks).
+   - Decide whether the neon city backdrop becomes the default; check it
+     on phones first. A shared hub between all three games' visuals.
+   - Host tab in the background stalls everyone; could warn the host.
+   New games for the arcade, from the first brainstorm (all reuse the
+   PeerJS star + room codes + arcade hand-off; the easiest lift first)
+   1. Light-trail territory control: enclose floor area with your trail
+      in 3D (Paper.io style); timed rounds, great with big lobbies. Very
+      close to the Cycles code.
+   2. Neon hover-tanks arena: slower and tactical, ricocheting shots off
+      glowing walls, destructible cover. Needs host-run physics like Sumo
+      (bullets and bounces), so start from Sumo's netcode.
+   3. Neon racing with hazards: short loop tracks, drop trail segments or
+      mines behind you; reuse Cycles' trails and Sumo's physics.
+   4. Co-op tower defense on a grid: 2-4 players build glowing turrets
+      against waves; a co-op option next to the PvP games.
+   5. Neon prop hunt / hide-and-seek: hide among glowing shapes, seekers
+      scan with a pulse that briefly reveals everyone.
+   6. Shared building canvas: voxel "place" with a per-player cooldown;
+      light server logic, a reason to come back daily.
+   7. Earlier idea (2026-10-12): small multiplayer FPS in a seeded mini
+      city arena (hitscan rifle, shotgun, rockets), deathmatch.
+   Shared code: Cycles, Sumo and the arcade now each carry a copy of the
+   same PeerJS host/join/relay code (loadPeerJS, netHost with fixed codes,
+   netJoin with wait retries, goArcade). A shared net.js would stop the
+   copies drifting; the same refactor note applies to the VR/desktop
+   builds above.
+ - Mobile performance: the FPS readout can't show below 20 (dt is capped
+   at 0.05 and fpsAcc sums capped dt); slow devices also run in slow
+   motion below 20 fps. Consider auto quality for phones.
+
+================================================================================
