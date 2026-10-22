@@ -109,6 +109,7 @@ Fifth circuit, "POLYGON SAKURA" (`PolygonCircuitLayout.Sakura`, scene `Scenes/Sa
 - Look preset Sakura: clear spring morning (sun Euler 34,115 ×1.28, horizon .84,.86,.93, fog 420-1500 m, clouds radius 1250, seed 71); camera far clip 1600, near 0.1.
 - Menu **14 - Create or Refresh Sakura Hills** (`Editor/PolygonSakuraSetup.cs`) and **Debug - Sakura Landmark Views** (under-bridge, Ferris wheel, park, lake, pagoda, hairpin gate, esses). Race menu: FOREST / COASTAL EXPRESSWAY / DOWNTOWN STREETS / RIVIERA HARBOUR / SAKURA HILLS / BACK (instruction lines merged to keep 8 lines on the panel).
 - Verified on Thomas's PC on 22 Oct: compiles; menu 14 builds in about 85 s, 1,064 renderers, about 413k scenery triangles; all lap viewpoints and landmark views checked.
+- Headset result (22 Oct): looks really good, good FPS, Ferris wheel turns, mini-map tracks the figure-eight correctly. Accepted.
 - To test on Quest: frame rate (413k triangles; crowd density and pine count are the levers), driving under and over the bridge (no height snapping, lap counter keeps counting, rivals don't brake for cars on the other road), hairpin braking, Ferris wheel turning, minimap readability of the figure-eight.
 
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
