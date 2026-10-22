@@ -1,6 +1,6 @@
 # Polygon Racing VR — current development handoff
 
-Updated: October 21, 2026 (America/Chicago).
+Updated: October 22, 2026 (America/Chicago).
 
 This replaces the previous contents of this handoff. It supersedes the old v01/v02 instructions: slipstreaming, the coastal circuit, marina, minimap, banking and the seaside venue are now implemented and user-tested. Do not restart from the old “implement slipstreaming next” plan.
 
@@ -84,6 +84,20 @@ New third circuit, "POLYGON CITY" (`PolygonCircuitLayout.Downtown`, scene `Asset
 - Menu **Debug - Next Circuit Viewpoint** steps the Scene view through overviews, driver-height and helicopter views every 1/16 lap (its Ctrl+Shift+V shortcut conflicts with an Edit menu shortcut; use the menu).
 - Verified on Thomas's PC on 22 Oct via desktop control: compiles (only existing deprecation warnings), menu 12 builds in about 40 s with 757 scenery renderers and about 400k scenery triangles; Scene views checked around the lap. In editor Play mode the race menu and rivals did not appear (dashboard showed the plain driver readout), so the race flow must be checked in a Quest build; the driver itself drove and hit the corner wall correctly.
 - Not yet checked: Quest frame rate (400k triangles is the main risk; levers are crowd density `Hash<.24` skip, tower band spacing, chunk size, fence posts), race start/rivals on device, minimap scale for the bigger layout.
+
+Headset result for Downtown v01: "no slow down, very detailed". Building windows flickered (bands only 7–20 cm proud). Fixed: facades are stacked solid wall slabs with glass `Sleeve`s recessed 0.35 m (no coplanar faces), proud parts at least 0.6 m clear, camera near clip 0.1. Accepted after the fix.
+
+### Riviera Harbour — Riviera v01 (built in Unity, not yet on Quest)
+
+Fourth circuit, "POLYGON RIVIERA" (`PolygonCircuitLayout.Riviera`, scene `Scenes/RivieraHarbour.unity`, lap 2,597 m, road half-width 7.5 m, Time Trial key `RivieraV01`). Inspired by Monaco's character with an original layout and buildings: narrow guard-railed streets, a climb from the harbour to a casino square, a very tight hairpin (B-spline radius about 20.7 m, so the player must brake), a descent to a seafront tunnel under a hotel, a harbour-front chicane, the pool section and a final hairpin back onto the start straight beside the yachts.
+
+- **Real elevation (first circuit with it):** `PolygonCircuit.rivieraHeights` (55 values, one per knot) evaluated with the same B-spline basis (`PolygonCircuit.Elevation`, `HasElevation`). `PolygonBanking.Height/Normal` use it, so the player car and rivals ride the hills and pitch with the grade (about +13 % up, −10 % down). Lap checkpoint distances ignore height. Other layouts return 0.
+- **Barriers:** `PolygonCircuit.BarrierMargin` (1.3 m on Riviera, 6.5 m elsewhere). The driver's off-road/barrier checks now use exact `ProjectLap` instead of the old 256-point lookup.
+- `Runtime/PolygonRivieraArt.cs`: terrain grid (8 m fine, 40 m coarse with skirts) blending road elevation with hills/mountains to the north; harbour water quad at y −0.6 with quay walls, six pontoons of stern-to yachts, superyachts and sailboats in the bay, two harbour-mouth lighthouses; guardrails at 8.7–9.0 m, pavements to 13 m, catch fences; tunnel (knots 28.7–32.6) with sea-side arches and light strips under a stepped hotel; start gantry with five lights, team garages with parked cars, four grandstands with crowds; casino palace with gardens and fountain, hotel and cafe; hairpin hotel; pool; palace rock headland; terraced stucco villas with shutters, balconies and terracotta roofs; cypresses, palms, lamps, 100/50 boards.
+- Look preset Riviera: bright Mediterranean noon (sun Euler 46,−120 ×1.3, zenith .10,.36,.78, horizon .72,.86,.92, fog 420–1350 m, cloud seed 53).
+- Menu **13 - Create or Refresh Riviera Harbour** (`Editor/PolygonRivieraSetup.cs`): copies the Forest scene on first run, persists assets to `Generated/Riviera`, applies the look, near clip 0.1, adds the scene to the build list. Race menu: FOREST / COASTAL EXPRESSWAY / DOWNTOWN STREETS / RIVIERA HARBOUR / BACK.
+- Verified on Thomas's PC on 22 Oct: compiles; menu 13 builds in 42.8 s, 883 renderers, 393,855 scenery triangles; all 34 debug viewpoints checked (start, harbour, climb, casino, hairpin, tunnel, chicane, pool, final hairpin) with no floating or intersecting geometry found.
+- To test on Quest: frame rate, whether the elevation feels right (car pitch, rivals on hills), the narrow 1.3 m barrier margin, hairpin braking, rivals' pace in the hairpin (no AI corner braking — they may need it here), minimap scale.
 
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
