@@ -41,7 +41,7 @@ namespace PolygonRacing
 
         void Start()
         {
-            startPosition=PolygonWorld.Point(0);startRotation=Quaternion.LookRotation(PolygonWorld.Tangent(0));
+            startPosition=PolygonWorld.Point(0)+Vector3.up*PolygonCircuit.Elevation(0);startRotation=Quaternion.LookRotation(PolygonWorld.Tangent(0));
             Application.targetFrameRate=72;
             var scenery=transform.parent.Find("Circuit - editable scenery");
             if(scenery)StaticBatchingUtility.Combine(scenery.gameObject);
@@ -134,7 +134,9 @@ namespace PolygonRacing
                 if(speed>.1f||lapTime>0)lapTime+=Time.deltaTime;
                 var checkpoint=PolygonWorld.Point((nextCheckpoint%16)*Mathf.PI*2/16);
                 var flat=transform.position;flat.y=0;
-                if(Vector3.Distance(flat,checkpoint)<22 && Vector3.Dot(transform.forward,PolygonWorld.Tangent(nextCheckpoint*Mathf.PI*2/16))>.2f)
+                // Height check: on a figure-eight a checkpoint can sit on the road above or below.
+                float checkpointHeight=PolygonCircuit.Elevation(PolygonCircuit.DistanceAtKnot((nextCheckpoint%16)*PolygonCircuit.KnotCount/16f));
+                if(Vector3.Distance(flat,checkpoint)<22 && Mathf.Abs(transform.position.y-checkpointHeight)<5 && Vector3.Dot(transform.forward,PolygonWorld.Tangent(nextCheckpoint*Mathf.PI*2/16))>.2f)
                 {
                     nextCheckpoint++;
                     if(nextCheckpoint>16){lastLap=lapTime;if(bestTime==0||lapTime<bestTime)bestTime=lapTime;lap++;lapTime=0;nextCheckpoint=1;status="LAP COMPLETE";nextStatus=Time.time+5;}
@@ -150,7 +152,9 @@ namespace PolygonRacing
         public static string FormatTime(float seconds) => $"{(int)(seconds/60):00}:{seconds%60:00.0}";
         static int NearestPoint(Vector3 p,out float distance)
         {
-            p.y=0; // Road classification remains lateral, independent of bank height.
+            // Road classification remains lateral, independent of bank height; a crossover layout
+            // keeps the real height so the road above or below is never picked.
+            if(!PolygonCircuit.HasCrossover)p.y=0;
             // Exact projection onto the route (the old 256-point lookup overstated the lateral
             // offset by up to ~5 m between samples, which matters on narrow street circuits).
             float lap=PolygonCircuit.ProjectLap(p,out distance);

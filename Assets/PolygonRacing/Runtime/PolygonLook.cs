@@ -40,6 +40,13 @@ namespace PolygonRacing
                     Zenith=new Color(.10f,.36f,.78f),Horizon=new Color(.72f,.86f,.92f),
                     BelowHorizon=new Color(.30f,.55f,.72f),WaterZenith=new Color(.16f,.44f,.80f),
                     FogStart=420,FogEnd=1350,CloudRadius=1100,CloudSeed=53};
+            if(layout==PolygonCircuitLayout.Sakura)
+                // Clear spring morning: soft warm sun from the east, pale lilac-blue haze in the valley.
+                return new Preset{
+                    SunEuler=new Vector3(34,115,0),SunColor=new Color(1,.93f,.86f),SunIntensity=1.28f,
+                    Zenith=new Color(.22f,.48f,.84f),Horizon=new Color(.84f,.86f,.93f),
+                    BelowHorizon=new Color(.52f,.62f,.62f),WaterZenith=new Color(.24f,.52f,.80f),
+                    FogStart=420,FogEnd=1500,CloudRadius=1250,CloudSeed=71};
             if(layout==PolygonCircuitLayout.Downtown)
                 // Late-afternoon golden hour: low warm sun, peach haze between the towers.
                 return new Preset{

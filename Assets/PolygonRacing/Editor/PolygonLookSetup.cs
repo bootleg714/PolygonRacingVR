@@ -37,7 +37,7 @@ namespace PolygonRacing.Editor
             }
             if(!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
             int done=0;
-            foreach(var (path,layout) in new[]{(ForestPath,PolygonCircuitLayout.Forest),(CoastalPath,PolygonCircuitLayout.CoastalExpressway),(PolygonDowntownSetup.DowntownPath,PolygonCircuitLayout.Downtown),(PolygonRivieraSetup.RivieraPath,PolygonCircuitLayout.Riviera)})
+            foreach(var (path,layout) in new[]{(ForestPath,PolygonCircuitLayout.Forest),(CoastalPath,PolygonCircuitLayout.CoastalExpressway),(PolygonDowntownSetup.DowntownPath,PolygonCircuitLayout.Downtown),(PolygonRivieraSetup.RivieraPath,PolygonCircuitLayout.Riviera),(PolygonSakuraSetup.SakuraPath,PolygonCircuitLayout.Sakura)})
             {
                 if(!File.Exists(path)){Debug.LogWarning("Skipped missing scene "+path);continue;}
                 var scene=EditorSceneManager.OpenScene(path,OpenSceneMode.Single);

@@ -216,24 +216,29 @@ namespace PolygonRacing
         float ForwardGap(Vector3 center,Vector3 forward,Vector3 side,float targetLane)
         {
             float gap=1000;
-            CheckGap(player.transform.position,center,forward,side,targetLane,ref gap);
+            float y=transform.position.y;
+            CheckGap(player.transform.position,center,forward,side,targetLane,y,ref gap);
             foreach(var other in traffic)if(other&&other!=this&&other.Participating)
-                CheckGap(other.transform.position,center,forward,side,targetLane,ref gap);
+                CheckGap(other.transform.position,center,forward,side,targetLane,y,ref gap);
             return gap;
         }
-        static void CheckGap(Vector3 p,Vector3 center,Vector3 forward,Vector3 side,float targetLane,ref float gap)
+        // Cars more than 4 m above or below (the other road at a crossover bridge) are ignored.
+        static void CheckGap(Vector3 p,Vector3 center,Vector3 forward,Vector3 side,float targetLane,float y,ref float gap)
         {
+            if(Mathf.Abs(p.y-y)>4)return;
             var delta=p-center;float ahead=Vector3.Dot(delta,forward);
             if(ahead>0&&Mathf.Abs(Vector3.Dot(delta,side)-targetLane)<3.2f)gap=Mathf.Min(gap,ahead);
         }
         bool LaneClear(Vector3 center,Vector3 forward,Vector3 side,float candidate)
         {
-            if(BlocksLane(player.transform.position,center,forward,side,candidate))return false;
-            foreach(var other in traffic)if(other&&other!=this&&other.Participating&&BlocksLane(other.transform.position,center,forward,side,candidate))return false;
+            float y=transform.position.y;
+            if(BlocksLane(player.transform.position,center,forward,side,candidate,y))return false;
+            foreach(var other in traffic)if(other&&other!=this&&other.Participating&&BlocksLane(other.transform.position,center,forward,side,candidate,y))return false;
             return true;
         }
-        static bool BlocksLane(Vector3 p,Vector3 center,Vector3 forward,Vector3 side,float candidate)
+        static bool BlocksLane(Vector3 p,Vector3 center,Vector3 forward,Vector3 side,float candidate,float y)
         {
+            if(Mathf.Abs(p.y-y)>4)return false;
             var delta=p-center;
             return Mathf.Abs(Vector3.Dot(delta,forward))<16&&Mathf.Abs(Vector3.Dot(delta,side)-candidate)<3.2f;
         }
