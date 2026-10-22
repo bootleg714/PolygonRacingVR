@@ -58,10 +58,11 @@ namespace PolygonRacing
 
         // Four side walls of a box, no top or bottom (8 triangles): for recessed glass bands
         // whose top and bottom are hidden by the wall slabs above and below.
-        public void Sleeve(Material m,Vector3 centre,Vector3 size)
+        public void Sleeve(Material m,Vector3 centre,Vector3 size)=>Sleeve(m,centre,size,Quaternion.identity);
+        public void Sleeve(Material m,Vector3 centre,Vector3 size,Quaternion rotation)
         {
             var h=size*.5f;
-            Vector3 V(float x,float y,float z)=>centre+new Vector3(x*h.x,y*h.y,z*h.z);
+            Vector3 V(float x,float y,float z)=>centre+rotation*new Vector3(x*h.x,y*h.y,z*h.z);
             var b=new[]{V(-1,-1,-1),V(1,-1,-1),V(1,-1,1),V(-1,-1,1)};var t=new[]{V(-1,1,-1),V(1,1,-1),V(1,1,1),V(-1,1,1)};
             for(int i=0;i<4;i++){int j=(i+1)%4;Quad(m,b[i],b[j],t[j],t[i],centre);}
         }
