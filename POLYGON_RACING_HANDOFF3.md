@@ -112,6 +112,18 @@ Fifth circuit, "POLYGON SAKURA" (`PolygonCircuitLayout.Sakura`, scene `Scenes/Sa
 - Headset result (22 Oct): looks really good, good FPS, Ferris wheel turns, mini-map tracks the figure-eight correctly. Accepted.
 - To test on Quest: frame rate (413k triangles; crowd density and pine count are the levers), driving under and over the bridge (no height snapping, lap counter keeps counting, rivals don't brake for cars on the other road), hairpin braking, Ferris wheel turning, minimap readability of the figure-eight.
 
+### Nordwald Ring — Nordwald v01 (built in Unity, not yet on Quest)
+
+Sixth circuit, "NORDWALD RING" (`PolygonCircuitLayout.Nordwald`, scene `Scenes/NordwaldRing.unity`, lap 5,069 m, road half-width 7 m, barrier margin 2.5 m, Time Trial key `NordwaldV01`). An original take on the great German mountain track: narrow road through a forest tunnel, twisting downhill esses after the start, a crest, a plunge to the valley under a stone road bridge by the village, a long climb to an **18-degree banked concrete hairpin** at the top of the hill (radius about 18 m, needs braking), spectator corners and jumpy dips on the way down, and a long straight home under a second bridge. Heights 0-48 m, grades +9.5 % / -7.7 %.
+
+- **Banking support (new):** `PolygonCircuit.BankDegrees/BankSlope` from a per-layout table of (first knot, last knot, degrees), ramped over 0.8 knot; `PolygonBanking.Height` adds lateral × slope, so the player, rivals and the surface normal all tilt with the bank. Only Nordwald has banks; other circuits are unchanged.
+- `Runtime/PolygonNordwaldArt.cs`: patched asphalt, concrete slab surface with joints on the banked hairpin, verges, double steel barriers (blue lower rails in places), catch fences and standing crowds in five spectator zones, embankments where the road is raised, two country-road stone bridges with ramps and onlookers, castle with keep and curtain walls on the hill inside the loop, half-timbered village with a church spire, camping meadow (camper vans with awnings, ridge tents, flags), pits with tower and parked cars, five grandstands, corner boards, kilometre posts, about 6,500 trees (spruce and beech; back rows and distant hills use simple silhouettes).
+- Levelled sites (pits, village, camping meadow) can only lower the ground beside the road; their upward pull fades out within 60 m so they never bury the track (this caused floating spectators by the valley bridge before the fix).
+- Look preset Nordwald: cool summer afternoon (sun Euler 42,-150 ×1.22, horizon .78,.84,.86, fog 300-1150 m). Far clip 1350, near 0.1.
+- Menu **15 - Create or Refresh Nordwald Ring** and **Debug - Nordwald Landmark Views**. Race menu now lists six circuits (panel slightly taller).
+- Verified on Thomas's PC on 22 Oct: compiles; menu 15 builds in about 105 s, about 457k scenery triangles (first build was 538k; forest thinned). Landmark views and lap views checked.
+- To test on Quest: frame rate (heaviest circuit so far; levers are tree grids in `BuildForest` and crowd density), the banked hairpin feel, rivals in the banked hairpin, lap counting over the 5 km lap, minimap scale.
+
 Colours were chosen with a Python software preview that mirrors the shader maths (not Unity output). It lives outside the repo.
 
 ## Project, workflow and validation
@@ -436,7 +448,7 @@ New circuits, each an original take on an iconic track (same approach as Riviera
 Polish across all tracks:
 
 - Time-of-day variants (sunset / dusk versions of existing circuits, chosen in the circuit menu).
-- Rivals braking for hairpins (Riviera, Sakura and the Nürburgring-style track have corners tighter than top-speed turning).
+- Rivals braking for hairpins (Riviera, Sakura and Nordwald Ring have corners tighter than top-speed turning).
 - Best lap saved per circuit and shown in the menu; podium/results screen.
 - Shared review of crowd density, tree counts and draw calls if any circuit dips on Quest.
 
